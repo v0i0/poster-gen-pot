@@ -1,0 +1,46 @@
+parameter A(i : atom_type; j : atom_type)        = file(1);
+parameter B(i : atom_type; j : atom_type)        = file(2);
+parameter lambda_1(i : atom_type; j : atom_type) = file(3);
+parameter lambda_2(i : atom_type; j : atom_type) = file(4);
+parameter beta(i : atom_type; j : atom_type)     = file(5);
+parameter n(i : atom_type; j : atom_type)        = file(6);
+parameter R(i : atom_type; j : atom_type; k : atom_type)        = file(1);
+parameter D(i : atom_type; j : atom_type; k : atom_type)        = file(2);
+parameter lambda_3(i : atom_type; j : atom_type; k : atom_type) = file(3);
+parameter mm(i : atom_type; j : atom_type; k : atom_type)        = file(4);
+parameter gamma(i : atom_type; j : atom_type; k : atom_type)    = file(5);
+parameter c(i : atom_type; j : atom_type; k : atom_type)        = file(6);
+parameter d(i : atom_type; j : atom_type; k : atom_type)        = file(7);
+parameter cos_theta_0(i : atom_type; j : atom_type; k : atom_type)  = file(8);
+
+function m(i : atom_type; j : atom_type; k : atom_type)        = 3;
+function f_C(i : atom_type; j : atom_type; k : atom_type; r : distance) = implicit(i : i; j : j; k : k)
+  piecewise(r <= R - D : 1; R - D < r < R + D : 1 / 2 - 1 / 2 * sin(pi / 2 * (r - R) / D); r >= R + D : 0);
+function f_R(i : atom_type; j : atom_type; r : distance) = implicit(i : i; j : j) A * exp(-lambda_1 * r);
+function f_A(i : atom_type; j : atom_type; r : distance) = implicit(i : i; j : j) -B * exp(-lambda_2 * r);
+function g(i : atom_type; j : atom_type; k : atom_type; theta : angle) = implicit(i : i; j : j; k : k)
+  gamma * (1 + c ^ 2 / d ^ 2 - c ^ 2 / (d ^ 2 + (cos(theta) - cos_theta_0) ^ 2));
+function zetad(i : atom; j : atom) = sum(k : neighbors(i, R(i, j, k) + D(i, j, k), j)) implicit(i : i; j : j; k : k)
+  f_C(r(i, k)) * g(theta(j, i, k)) * exp(lambda_3 ^ m * (r(i, j) - r(i, k)) ^ m);
+function zeta(i : atom; j : atom) = sum(k : neighbors(i, R(i, j, k) + D(i, j, k), j)) implicit(i : i; j : j; k : k)
+  f_C(r(i, k)) * g(theta(j, i, k)) * exp(lambda_3 ^ m * (r(i, j) - r(i, k)) ^ m);
+
+function tersqrt(val : distance; n : distance) = (1 + val^n) ^ (-1 / (2 * n));
+
+#function c1(n : distance) = (2*n/10000000000000)^(-1/n);
+#function c2(n : distance) = (2*n/100000000)^(-1/n);
+#function c3(n : distance) = (2*n/100000000)^(1/n);
+#function c4(n : distance) = (2*n/10000000000000)^(1/n);
+#function tersqrt(val : distance; n : distance) = piecewise(
+#  val > c1(n): 1/sqrt(val);
+#  val > c2(n): (1 - val^(-n) / (2*n)) / sqrt(val);
+#  val < c4(n): 1;
+#  val < c3(n): 1 - val^n / (2*n);
+#  val <= val: (1 + val^n)^(-1/(2*n)));
+  
+
+#function b(i : atom; j : atom) = implicit(i : i; j : j) (1 + beta ^ n * zeta(i, j) ^ n) ^ (-1 / (2 * n));
+function b(i : atom; j : atom) = implicit(i : i; j : j) tersqrt(beta * zeta(i, j), n);
+function V(i : atom; j : atom) = implicit(i : i; j : j; k : j) f_C(r) * (f_R(r) + b(i, j) * f_A(r));
+energy 1 / 2 * sum(i : all_atoms) sum(j : neighbors(i, R(i, j, j) + D(i, j, j))) V(i, j);
+# F_i = - d/dx_i V

@@ -1,0 +1,6 @@
+# Same as Si.tersoff
+# A B lambda_1 lambda_2 beta n
+Si Si 3264.7 95.373 3.2394 1.3258 0.33675 22.956
+# R D lambda_3 m gamma c d theta_0 = acos(cos(theta_0))
+# cos(theta_0) = 0 -> acos(cos(theta_0)) = pi / 2 = 1.5707963267948966
+Si Si Si 3.0 0.2 1.3258 3.0 1.0 4.8381 2.0417 0

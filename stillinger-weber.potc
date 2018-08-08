@@ -1,0 +1,23 @@
+parameter A(i : atom_type; j : atom_type) = file(1);
+parameter a(i : atom_type; j : atom_type) = file(2);
+parameter B(i : atom_type; j : atom_type) = file(3);
+parameter p(i : atom_type; j : atom_type) = file(4);
+parameter q(i : atom_type; j : atom_type) = file(5);
+parameter epsilon(i : atom_type; j : atom_type) = file(6);
+parameter sigma(i : atom_type; j : atom_type) = file(7);
+parameter gamma(i : atom_type; j : atom_type) = file(8);
+parameter lambda(i : atom_type; j : atom_type; k : atom_type) = file(1);
+parameter cos_theta0(i : atom_type; j : atom_type; k : atom_type) = file(2);
+function r_C(i : atom_type; j : atom_type) = implicit(i: i; j: j) a * sigma;
+
+function phi_2(i : atom_type; j : atom_type; r : distance) = implicit(i: i; j: j) 
+  A * epsilon * (B * (sigma / r)^p - (sigma / r)^q) * exp(sigma / (r - a * sigma));
+
+function phi_3(i : atom; j : atom; k : atom; r_ij : distance; r_ik : distance; theta_ijk : angle) = 
+  implicit(i: i; j: j; k: k) lambda * epsilon * (cos(theta_ijk) - cos_theta0(i, j, k))^2 * 
+    exp(gamma * sigma / (r_ij - a * sigma)) * 
+    exp(gamma(i, k) * sigma(i, k) / (r_ik - a(i, k) * sigma(i, k)));
+
+energy 1/2*sum(i : all_atoms) sum(j : neighbors_half(i, r_C(i, j))) implicit(i: i; j: j) phi_2(r);
+energy 1/2*sum(i : all_atoms) sum(j : neighbors(i, r_C(i, j))) sum(k : neighbors_half(i, r_C(i, k), j))
+  implicit(i : i; j : j; k : k) phi_3(r(i, j), r(i, k), theta(j, i, k));
