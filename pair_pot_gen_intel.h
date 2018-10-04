@@ -43,9 +43,10 @@ PairPotGenIntel(class LAMMPS *);
   double init_one(int, int);
   void init_style();
   virtual void allocate();
-    virtual void file_process_line(int narg, char **arg, char **coeff_arg);
+  virtual void file_process_line(int narg, char **arg, char **coeff_arg);
 
   FixIntel* fix;
+  int onetype;
   double cutmax;
   int* type_map;
   double **param_A;
@@ -63,12 +64,19 @@ PairPotGenIntel(class LAMMPS *);
   double ***param_d;
   double ***param_cos_theta_0;
 
+double ***outlined_param_0;
+double **outlined_param_1;
+double **outlined_param_2;
+double **outlined_param_3;
+double **outlined_param_4;
+double **outlined_param_5;
+
   template <class flt_t> class ForceConst;
 
   template <class flt_t, class acc_t>
   void compute(int eflag, int vflag, IntelBuffers<flt_t,acc_t> *buffers,
                const ForceConst<flt_t> &fc);
-  template <int EFLAG, class flt_t, class acc_t>
+  template <int ONETYPE, int EFLAG, class flt_t, class acc_t>
   void eval(const int offload, const int vflag,
             IntelBuffers<flt_t,acc_t> * buffers, const ForceConst<flt_t> &fc,
             const int astart, const int aend);

@@ -68,13 +68,18 @@ PairPotGen::~PairPotGen() {
     memory->destroy(param_c);
     memory->destroy(param_d);
     memory->destroy(param_cos_theta_0);
+    memory->destroy(outlined_param_0);
+    memory->destroy(outlined_param_1);
+    memory->destroy(outlined_param_2);
+    memory->destroy(outlined_param_3);
+    memory->destroy(outlined_param_4);
+    memory->destroy(outlined_param_5);
   }
 }
 
 /* ---------------------------------------------------------------------- */
 
 void PairPotGen::compute(int eflag, int vflag) {
-  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   if (eflag || vflag) ev_setup(eflag,vflag);
   else evflag = vflag_fdotr = 0;
 
@@ -86,21 +91,32 @@ void PairPotGen::compute(int eflag, int vflag) {
   int newton_pair = force->newton_pair;
   int inum = list->inum;
   int *ilist = list->ilist;
+  tagint *tag = atom->tag;
   int *numneigh = list->numneigh;
   int **firstneigh = list->firstneigh;
   double i_a_2 = 0.0;
-  double i_mul_adj_124 = 1 / ((double) 2);
+  double i_mul_adj_175 = 1 / ((double) 2);
   for (int i_i_3 = 0; i_i_3 < nlocal; i_i_3++) {
     double i_px_4 = x[i_i_3][0];
     double i_py_4 = x[i_i_3][1];
     double i_pz_4 = x[i_i_3][2];
     int i_ty_4 = type[i_i_3];
     double i_a_5 = 0.0;
-    double i_fx_127 = 0.0;
-    double i_fy_127 = 0.0;
-    double i_fz_127 = 0.0;
-    for (int i_i_6 = 0; i_i_6 < numneigh[i_i_3]; i_i_6++) {
-      int i_a_7 = firstneigh[i_i_3][i_i_6];
+    double i_fx_178 = 0.0;
+    double i_fy_178 = 0.0;
+    double i_fz_178 = 0.0;
+    int listnum_i_snlist_1047 = 0;
+    int listentry_i_snlist_1047[neighbor->oneatom];
+    for (int i_scounter_1048 = 0; i_scounter_1048 < numneigh[i_i_3]; i_scounter_1048++) {
+      int i_satom_1049 = firstneigh[i_i_3][i_scounter_1048];
+      double i_dx_1049 = i_px_4 - x[i_satom_1049][0];
+      double i_dy_1049 = i_py_4 - x[i_satom_1049][1];
+      double i_dz_1049 = i_pz_4 - x[i_satom_1049][2];
+      if ((i_dx_1049 * i_dx_1049 + i_dy_1049 * i_dy_1049 + i_dz_1049 * i_dz_1049) > cutsq[i_ty_4][type[i_satom_1049]]) continue;
+      listentry_i_snlist_1047[listnum_i_snlist_1047++] = i_satom_1049;
+    }
+    for (int i_i_6 = 0; i_i_6 < listnum_i_snlist_1047; i_i_6++) {
+      int i_a_7 = listentry_i_snlist_1047[i_i_6];
       double i_px_8 = x[i_a_7][0];
       double i_py_8 = x[i_a_7][1];
       double i_pz_8 = x[i_a_7][2];
@@ -116,207 +132,246 @@ void PairPotGen::compute(int eflag, int vflag) {
       double i_r_13 = sqrt(i_rsq_9);
       double i_v_14;
       double i_v_17 = i_param_10 - i_param_11;
-      double i_param_36 = param_A[i_ty_4][i_ty_8];
-      double i_param_37 = param_lambda_1[i_ty_4][i_ty_8];
-      double i_bultin_40 = exp(0 - i_param_37 * i_r_13);
-      double i_param_42 = param_beta[i_ty_4][i_ty_8];
-      double i_param_105 = param_n[i_ty_4][i_ty_8];
-      double i_v_110 = 0 - 1 / ((double) (2 * i_param_105));
-      double i_param_113 = param_B[i_ty_4][i_ty_8];
-      double i_param_114 = param_lambda_2[i_ty_4][i_ty_8];
-      double i_bultin_117 = exp(0 - i_param_114 * i_r_13);
-      double i_v_119 = 0 - i_param_113 * i_bultin_117;
-      double i_a_168 = 0.0;
-      for (int i_i_169 = 0; i_i_169 < numneigh[i_i_3]; i_i_169++) {
-        int i_a_170 = firstneigh[i_i_3][i_i_169];
-        int i_ty_171 = type[i_a_170];
-        double i_dx_172 = i_px_4 - x[i_a_170][0];
-        double i_dy_172 = i_py_4 - x[i_a_170][1];
-        double i_dz_172 = i_pz_4 - x[i_a_170][2];
-        double i_rsq_172 = i_dx_172 * i_dx_172 + i_dy_172 * i_dy_172 + i_dz_172 * i_dz_172;
-        double i_param_173 = param_R[i_ty_4][i_ty_8][i_ty_171];
-        double i_param_174 = param_D[i_ty_4][i_ty_8][i_ty_171];
-        double i_v_175 = i_param_173 + i_param_174;
-        if (i_rsq_172 > (i_v_175 * i_v_175)) continue;
-        if (i_a_170 == i_a_7) continue;
-        double i_r_176 = sqrt(i_rsq_172);
-        double i_v_177;
-        double i_v_180 = i_param_173 - i_param_174;
-        if (i_r_176 <= i_v_180) {
-          i_v_177 = 1;
+      double i_param_40 = param_A[i_ty_4][i_ty_8];
+      double i_param_41 = param_lambda_1[i_ty_4][i_ty_8];
+      double i_bultin_44 = exp(0 - i_param_41 * i_r_13);
+      double i_mul_val_45 = i_bultin_44 * i_param_40;
+      double i_param_46 = param_beta[i_ty_4][i_ty_8];
+      double i_recip_a_84 = 1 / ((double) i_r_13);
+      double i_param_115 = param_n[i_ty_4][i_ty_8];
+      double i_param_164 = param_B[i_ty_4][i_ty_8];
+      double i_param_165 = param_lambda_2[i_ty_4][i_ty_8];
+      double i_bultin_168 = exp(0 - i_param_165 * i_r_13);
+      double i_v_170 = 0 - i_bultin_168 * i_param_164;
+      double i_a_223 = 0.0;
+      for (int i_i_224 = 0; i_i_224 < listnum_i_snlist_1047; i_i_224++) {
+        int i_a_225 = listentry_i_snlist_1047[i_i_224];
+        int i_ty_226 = type[i_a_225];
+        double i_dx_227 = i_px_4 - x[i_a_225][0];
+        double i_dy_227 = i_py_4 - x[i_a_225][1];
+        double i_dz_227 = i_pz_4 - x[i_a_225][2];
+        double i_rsq_227 = i_dx_227 * i_dx_227 + i_dy_227 * i_dy_227 + i_dz_227 * i_dz_227;
+        double i_param_228 = param_R[i_ty_4][i_ty_8][i_ty_226];
+        double i_param_229 = param_D[i_ty_4][i_ty_8][i_ty_226];
+        double i_v_230 = i_param_228 + i_param_229;
+        if (i_rsq_227 > (i_v_230 * i_v_230)) continue;
+        if (i_a_225 == i_a_7) continue;
+        double i_r_231 = sqrt(i_rsq_227);
+        double i_v_232;
+        double i_v_235 = i_param_228 - i_param_229;
+        if (i_r_231 <= i_v_235) {
+          i_v_232 = 1;
         } else {
-          if ((i_r_176 < i_v_175) && (i_v_180 < i_r_176)) {
-            i_v_177 = i_mul_adj_124 - sin((i_r_176 - i_param_173) * M_PI / ((double) (2 * i_param_174))) / ((double) 2);
+          if ((i_r_231 < i_v_230) && (i_v_235 < i_r_231)) {
+            i_v_232 = i_mul_adj_175 - i_mul_adj_175 * sin((i_r_231 - i_param_228) * M_PI * i_mul_adj_175 / ((double) i_param_229));
           } else {
-            if (i_r_176 >= i_v_175) {
-              i_v_177 = 0;
+            if (i_r_231 >= i_v_230) {
+              i_v_232 = 0;
             } else {
-              error->one(FLERR,"else no expr");
-              error->one(FLERR,"else no expr");
-              error->one(FLERR,"else no expr");
-              error->one(FLERR,"else no expr");
               error->one(FLERR,"else no expr");
             }
           }
         }
-        double i_param_203 = param_c[i_ty_4][i_ty_8][i_ty_171];
-        double i_v_204 = i_param_203 * i_param_203;
-        double i_param_205 = param_d[i_ty_4][i_ty_8][i_ty_171];
-        double i_v_206 = i_param_205 * i_param_205;
-        double i_v_214 = (i_dx_9 * i_dx_172 + i_dy_9 * i_dy_172 + i_dz_9 * i_dz_172) / ((double) (i_r_13 * i_r_176)) - param_cos_theta_0[i_ty_4][i_ty_8][i_ty_171];
-        double i_param_220 = param_lambda_3[i_ty_4][i_ty_8][i_ty_171];
-        double i_v_224 = i_r_13 - i_r_176;
-        i_a_168 += i_v_177 * param_gamma[i_ty_4][i_ty_8][i_ty_171] * (1 + i_v_204 / ((double) i_v_206) - i_v_204 / ((double) (i_v_206 + i_v_214 * i_v_214))) * exp(i_param_220 * i_param_220 * i_param_220 * i_v_224 * i_v_224 * i_v_224);
+        double i_param_262 = param_c[i_ty_4][i_ty_8][i_ty_226];
+        double i_param_264 = param_d[i_ty_4][i_ty_8][i_ty_226];
+        double i_v_274 = (i_dx_227 * i_dx_9 + i_dy_227 * i_dy_9 + i_dz_227 * i_dz_9) * i_recip_a_84 / ((double) i_r_231) - param_cos_theta_0[i_ty_4][i_ty_8][i_ty_226];
+        double i_param_281 = param_lambda_3[i_ty_4][i_ty_8][i_ty_226];
+        double i_v_285 = i_r_13 - i_r_231;
+        i_a_223 += (outlined_param_0[i_ty_4][i_ty_8][i_ty_226] - i_param_262 * i_param_262 / ((double) (i_param_264 * i_param_264 + i_v_274 * i_v_274))) * param_gamma[i_ty_4][i_ty_8][i_ty_226] * exp(i_param_281 * i_param_281 * i_param_281 * i_v_285 * i_v_285 * i_v_285) * i_v_232;
       }
-      double i_mul_val_229 = i_param_42 * i_a_168;
-      double i_v_232 = 1 + pow(i_mul_val_229, i_param_105);
-      double i_v_236 = pow(i_v_232, i_v_110);
-      double i_v_246 = i_param_36 * i_bultin_40 + i_v_236 * i_v_119;
-      double i_fun_acc_adj_249 = 0.0;
+      double i_mul_val_290 = i_a_223 * i_param_46;
+      double i_v_292;
+      if (i_mul_val_290 > outlined_param_3[i_ty_4][i_ty_8]) {
+        i_v_292 = 1 / ((double) sqrt(i_mul_val_290));
+      } else {
+        if (i_mul_val_290 > outlined_param_1[i_ty_4][i_ty_8]) {
+          i_v_292 = (1 - pow(i_mul_val_290, (0 - i_param_115)) / ((double) (2 * i_param_115))) / ((double) sqrt(i_mul_val_290));
+        } else {
+          if (i_mul_val_290 < outlined_param_4[i_ty_4][i_ty_8]) {
+            i_v_292 = 1;
+          } else {
+            if (i_mul_val_290 < outlined_param_2[i_ty_4][i_ty_8]) {
+              i_v_292 = 1 - pow(i_mul_val_290, i_param_115) / ((double) (2 * i_param_115));
+            } else {
+              if (i_mul_val_290 <= i_mul_val_290) {
+                i_v_292 = pow(1 + pow(i_mul_val_290, i_param_115), 0 - 1 / ((double) (2 * i_param_115)));
+              } else {
+                error->one(FLERR,"else no expr");
+              }
+            }
+          }
+        }
+      }
+      double i_fun_acc_adj_351 = 0.0;
       if (i_r_13 <= i_v_17) {
         i_v_14 = 1;
       } else {
         if ((i_r_13 < i_v_12) && (i_v_17 < i_r_13)) {
-          double i_mul_val_28 = (i_r_13 - i_param_10) * M_PI / ((double) (2 * i_param_11));
-          i_v_14 = i_mul_adj_124 - sin(i_mul_val_28) / ((double) 2);
-          i_fun_acc_adj_249 += - M_PI * cos(i_mul_val_28) * i_mul_adj_124 * i_v_246 / ((double) (4 * i_param_11));
+          double i_mul_val_29 = (i_r_13 - i_param_10) * M_PI * i_mul_adj_175 / ((double) i_param_11);
+          i_v_14 = i_mul_adj_175 - i_mul_adj_175 * sin(i_mul_val_29);
+          i_fun_acc_adj_351 += - (i_mul_val_45 + i_v_170 * i_v_292) * M_PI * cos(i_mul_val_29) * i_mul_adj_175 / ((double) (4 * i_param_11));
         } else {
           if (i_r_13 >= i_v_12) {
             i_v_14 = 0;
           } else {
             error->one(FLERR,"else no expr");
-            error->one(FLERR,"else no expr");
-            error->one(FLERR,"else no expr");
           }
         }
       }
-      i_a_5 += i_v_14 * i_v_246;
-      double i_fx_131 = 0.0;
-      double i_fy_131 = 0.0;
-      double i_fz_131 = 0.0;
-      double i_adj_by_r_289 = i_fun_acc_adj_249 / ((double) i_r_13);
-      i_fx_127 += - i_adj_by_r_289 * i_dx_9;
-      i_fy_127 += - i_adj_by_r_289 * i_dy_9;
-      i_fz_127 += - i_adj_by_r_289 * i_dz_9;
-      i_fx_131 += i_adj_by_r_289 * i_dx_9;
-      i_fy_131 += i_adj_by_r_289 * i_dy_9;
-      i_fz_131 += i_adj_by_r_289 * i_dz_9;
-      double i_mul_adj_290 = i_mul_adj_124 * i_v_14;
-      double i_adj_by_r_310 = - i_bultin_40 * i_mul_adj_290 * i_param_36 * i_param_37 / ((double) i_r_13);
-      i_fx_127 += - i_adj_by_r_310 * i_dx_9;
-      i_fy_127 += - i_adj_by_r_310 * i_dy_9;
-      i_fz_127 += - i_adj_by_r_310 * i_dz_9;
-      i_fx_131 += i_adj_by_r_310 * i_dx_9;
-      i_fy_131 += i_adj_by_r_310 * i_dy_9;
-      i_fz_131 += i_adj_by_r_310 * i_dz_9;
-      double i_mul_adj_540 = i_mul_adj_290 * i_v_119 * pow(i_v_232, (i_v_110 - 1)) * i_v_110 * pow(i_mul_val_229, (i_param_105 - 1)) * i_param_105 * i_param_42;
-      for (int i_i_544 = 0; i_i_544 < numneigh[i_i_3]; i_i_544++) {
-        int i_a_545 = firstneigh[i_i_3][i_i_544];
-        double i_px_546 = x[i_a_545][0];
-        double i_py_546 = x[i_a_545][1];
-        double i_pz_546 = x[i_a_545][2];
-        int i_ty_546 = type[i_a_545];
-        double i_dx_547 = i_px_4 - i_px_546;
-        double i_dy_547 = i_py_4 - i_py_546;
-        double i_dz_547 = i_pz_4 - i_pz_546;
-        double i_rsq_547 = i_dx_547 * i_dx_547 + i_dy_547 * i_dy_547 + i_dz_547 * i_dz_547;
-        double i_param_548 = param_R[i_ty_4][i_ty_8][i_ty_546];
-        double i_param_549 = param_D[i_ty_4][i_ty_8][i_ty_546];
-        double i_v_550 = i_param_548 + i_param_549;
-        if (i_rsq_547 > (i_v_550 * i_v_550)) continue;
-        if (i_a_545 == i_a_7) continue;
-        double i_r_551 = sqrt(i_rsq_547);
-        double i_v_552;
-        double i_v_555 = i_param_548 - i_param_549;
-        double i_cos_576 = (i_dx_9 * i_dx_547 + i_dy_9 * i_dy_547 + i_dz_9 * i_dz_547) / ((double) (i_r_13 * i_r_551));
-        double i_param_577 = param_gamma[i_ty_4][i_ty_8][i_ty_546];
-        double i_param_578 = param_c[i_ty_4][i_ty_8][i_ty_546];
-        double i_v_579 = i_param_578 * i_param_578;
-        double i_param_580 = param_d[i_ty_4][i_ty_8][i_ty_546];
-        double i_v_581 = i_param_580 * i_param_580;
-        double i_v_589 = i_cos_576 - param_cos_theta_0[i_ty_4][i_ty_8][i_ty_546];
-        double i_v_591 = i_v_581 + i_v_589 * i_v_589;
-        double i_mul_val_594 = i_param_577 * (1 + i_v_579 / ((double) i_v_581) - i_v_579 / ((double) i_v_591));
-        double i_param_595 = param_lambda_3[i_ty_4][i_ty_8][i_ty_546];
-        double i_v_596 = i_param_595 * i_param_595 * i_param_595;
-        double i_v_599 = i_r_13 - i_r_551;
-        double i_bultin_602 = exp(i_v_596 * i_v_599 * i_v_599 * i_v_599);
-        double i_fun_acc_adj_605 = 0.0;
-        if (i_r_551 <= i_v_555) {
-          i_v_552 = 1;
+      i_a_5 += (i_mul_val_45 + i_v_170 * i_v_292) * i_v_14;
+      double i_fx_182 = 0.0;
+      double i_fy_182 = 0.0;
+      double i_fz_182 = 0.0;
+      double i_adj_by_r_401 = i_fun_acc_adj_351 * i_recip_a_84;
+      i_fx_178 += - i_adj_by_r_401 * i_dx_9;
+      i_fy_178 += - i_adj_by_r_401 * i_dy_9;
+      i_fz_178 += - i_adj_by_r_401 * i_dz_9;
+      i_fx_182 += i_adj_by_r_401 * i_dx_9;
+      i_fy_182 += i_adj_by_r_401 * i_dy_9;
+      i_fz_182 += i_adj_by_r_401 * i_dz_9;
+      double i_mul_adj_402 = i_mul_adj_175 * i_v_14;
+      double i_adj_by_r_422 = - i_bultin_44 * i_mul_adj_402 * i_param_40 * i_param_41 * i_recip_a_84;
+      i_fx_178 += - i_adj_by_r_422 * i_dx_9;
+      i_fy_178 += - i_adj_by_r_422 * i_dy_9;
+      i_fz_178 += - i_adj_by_r_422 * i_dz_9;
+      i_fx_182 += i_adj_by_r_422 * i_dx_9;
+      i_fy_182 += i_adj_by_r_422 * i_dy_9;
+      i_fz_182 += i_adj_by_r_422 * i_dz_9;
+      double i_mul_adj_548 = i_mul_adj_402 * i_v_170;
+      double i_fun_acc_adj_620 = 0.0;
+      if (i_mul_val_290 > outlined_param_3[i_ty_4][i_ty_8]) {
+        double i_bultin_630 = sqrt(i_mul_val_290);
+        double i_recip_633 = 1 / ((double) i_bultin_630);
+        i_fun_acc_adj_620 += - 0.5 * i_mul_adj_548 * i_recip_633 * i_recip_633 / ((double) i_bultin_630);
+      } else {
+        if (i_mul_val_290 > outlined_param_1[i_ty_4][i_ty_8]) {
+          double i_v_642 = 0 - i_param_115;
+          double i_mul_val_644 = 2 * i_param_115;
+          double i_bultin_648 = sqrt(i_mul_val_290);
+          i_fun_acc_adj_620 += - i_mul_adj_548 * i_v_642 * pow(i_mul_val_290, (i_v_642 - 1)) / ((double) (i_bultin_648 * i_mul_val_644));
+          double i_recip_665 = 1 / ((double) i_bultin_648);
+          i_fun_acc_adj_620 += - (1 - pow(i_mul_val_290, i_v_642) / ((double) i_mul_val_644)) * 0.5 * i_mul_adj_548 * i_recip_665 * i_recip_665 / ((double) i_bultin_648);
         } else {
-          if ((i_r_551 < i_v_550) && (i_v_555 < i_r_551)) {
-            double i_mul_val_566 = (i_r_551 - i_param_548) * M_PI / ((double) (2 * i_param_549));
-            i_v_552 = i_mul_adj_124 - sin(i_mul_val_566) / ((double) 2);
-            i_fun_acc_adj_605 += - M_PI * cos(i_mul_val_566) * i_bultin_602 * i_mul_adj_540 * i_mul_val_594 / ((double) (4 * i_param_549));
+          if (i_mul_val_290 < outlined_param_4[i_ty_4][i_ty_8]) {
           } else {
-            if (i_r_551 >= i_v_550) {
-              i_v_552 = 0;
+            if (i_mul_val_290 < outlined_param_2[i_ty_4][i_ty_8]) {
+              i_fun_acc_adj_620 += - i_mul_adj_548 * pow(i_mul_val_290, (i_param_115 - 1)) / ((double) 2);
             } else {
-              error->one(FLERR,"else no expr");
+              if (i_mul_val_290 <= i_mul_val_290) {
+                i_fun_acc_adj_620 += (0 - 1 / ((double) (2 * i_param_115))) * i_mul_adj_548 * i_param_115 * pow((1 + pow(i_mul_val_290, i_param_115)), outlined_param_5[i_ty_4][i_ty_8]) * pow(i_mul_val_290, (i_param_115 - 1));
+              } else {
+                error->one(FLERR,"else no expr");
+              }
+            }
+          }
+        }
+      }
+      double i_mul_adj_779 = i_fun_acc_adj_620 * i_param_46;
+      for (int i_i_783 = 0; i_i_783 < listnum_i_snlist_1047; i_i_783++) {
+        int i_a_784 = listentry_i_snlist_1047[i_i_783];
+        double i_px_785 = x[i_a_784][0];
+        double i_py_785 = x[i_a_784][1];
+        double i_pz_785 = x[i_a_784][2];
+        int i_ty_785 = type[i_a_784];
+        double i_dx_786 = i_px_4 - i_px_785;
+        double i_dy_786 = i_py_4 - i_py_785;
+        double i_dz_786 = i_pz_4 - i_pz_785;
+        double i_rsq_786 = i_dx_786 * i_dx_786 + i_dy_786 * i_dy_786 + i_dz_786 * i_dz_786;
+        double i_param_787 = param_R[i_ty_4][i_ty_8][i_ty_785];
+        double i_param_788 = param_D[i_ty_4][i_ty_8][i_ty_785];
+        double i_v_789 = i_param_787 + i_param_788;
+        if (i_rsq_786 > (i_v_789 * i_v_789)) continue;
+        if (i_a_784 == i_a_7) continue;
+        double i_r_790 = sqrt(i_rsq_786);
+        double i_v_791;
+        double i_v_794 = i_param_787 - i_param_788;
+        double i_recip_b_819 = 1 / ((double) i_r_790);
+        double i_cos_819 = (i_dx_786 * i_dx_9 + i_dy_786 * i_dy_9 + i_dz_786 * i_dz_9) * i_recip_a_84 * i_recip_b_819;
+        double i_param_820 = param_gamma[i_ty_4][i_ty_8][i_ty_785];
+        double i_param_821 = param_c[i_ty_4][i_ty_8][i_ty_785];
+        double i_param_823 = param_d[i_ty_4][i_ty_8][i_ty_785];
+        double i_v_833 = i_cos_819 - param_cos_theta_0[i_ty_4][i_ty_8][i_ty_785];
+        double i_recip_837 = 1 / ((double) (i_param_823 * i_param_823 + i_v_833 * i_v_833));
+        double i_mul_val_836 = i_param_821 * i_param_821 * i_recip_837;
+        double i_mul_val_839 = (outlined_param_0[i_ty_4][i_ty_8][i_ty_785] - i_mul_val_836) * i_param_820;
+        double i_param_840 = param_lambda_3[i_ty_4][i_ty_8][i_ty_785];
+        double i_v_841 = i_param_840 * i_param_840 * i_param_840;
+        double i_v_844 = i_r_13 - i_r_790;
+        double i_bultin_847 = exp(i_v_841 * i_v_844 * i_v_844 * i_v_844);
+        double i_fun_acc_adj_850 = 0.0;
+        if (i_r_790 <= i_v_794) {
+          i_v_791 = 1;
+        } else {
+          if ((i_r_790 < i_v_789) && (i_v_794 < i_r_790)) {
+            double i_mul_val_806 = (i_r_790 - i_param_787) * M_PI * i_mul_adj_175 / ((double) i_param_788);
+            i_v_791 = i_mul_adj_175 - i_mul_adj_175 * sin(i_mul_val_806);
+            i_fun_acc_adj_850 += - M_PI * cos(i_mul_val_806) * i_bultin_847 * i_mul_adj_779 * i_mul_val_839 / ((double) (4 * i_param_788));
+          } else {
+            if (i_r_790 >= i_v_789) {
+              i_v_791 = 0;
+            } else {
               error->one(FLERR,"else no expr");
             }
           }
         }
-        double i_dx_575 = i_px_8 - i_px_546;
-        double i_dy_575 = i_py_8 - i_py_546;
-        double i_dz_575 = i_pz_8 - i_pz_546;
-        double i_adj_by_r_645 = i_fun_acc_adj_605 / ((double) i_r_551);
-        i_fx_127 += - i_adj_by_r_645 * i_dx_547;
-        i_fy_127 += - i_adj_by_r_645 * i_dy_547;
-        i_fz_127 += - i_adj_by_r_645 * i_dz_547;
-        double i_adj_acos_719 = 2 * i_bultin_602 * i_mul_adj_540 * i_param_577 * i_v_552 * i_v_579 * i_v_589 / ((double) (i_v_591 * i_v_591));
-        double i_adj_by_r_720 = (1 / ((double) i_r_551) - i_cos_576 / ((double) i_r_13)) * i_adj_acos_719 / ((double) i_r_13);
-        i_fx_127 += - i_adj_by_r_720 * i_dx_9;
-        i_fy_127 += - i_adj_by_r_720 * i_dy_9;
-        i_fz_127 += - i_adj_by_r_720 * i_dz_9;
-        i_fx_131 += i_adj_by_r_720 * i_dx_9;
-        i_fy_131 += i_adj_by_r_720 * i_dy_9;
-        i_fz_131 += i_adj_by_r_720 * i_dz_9;
-        double i_adj_by_r_721 = (1 / ((double) i_r_13) - i_cos_576 / ((double) i_r_551)) * i_adj_acos_719 / ((double) i_r_551);
-        i_fx_127 += - i_adj_by_r_721 * i_dx_547;
-        i_fy_127 += - i_adj_by_r_721 * i_dy_547;
-        i_fz_127 += - i_adj_by_r_721 * i_dz_547;
-        double i_adj_by_r_722 = - i_adj_acos_719 / ((double) (i_r_13 * i_r_551));
-        i_fx_131 += - i_adj_by_r_722 * i_dx_575;
-        i_fy_131 += - i_adj_by_r_722 * i_dy_575;
-        i_fz_131 += - i_adj_by_r_722 * i_dz_575;
-        double i_adj_749 = i_mul_adj_540 * i_v_552 * i_mul_val_594 * i_bultin_602 * i_v_596 * i_v_599 * i_v_599 * 3;
-        double i_adj_by_r_751 = i_adj_749 / ((double) i_r_13);
-        i_fx_127 += - i_adj_by_r_751 * i_dx_9;
-        i_fy_127 += - i_adj_by_r_751 * i_dy_9;
-        i_fz_127 += - i_adj_by_r_751 * i_dz_9;
-        i_fx_131 += i_adj_by_r_751 * i_dx_9;
-        i_fy_131 += i_adj_by_r_751 * i_dy_9;
-        i_fz_131 += i_adj_by_r_751 * i_dz_9;
-        double i_adj_by_r_753 = - i_adj_749 / ((double) i_r_551);
-        i_fx_127 += - i_adj_by_r_753 * i_dx_547;
-        i_fy_127 += - i_adj_by_r_753 * i_dy_547;
-        i_fz_127 += - i_adj_by_r_753 * i_dz_547;
-        f[i_a_545][0] += i_adj_by_r_645 * i_dx_547 + i_adj_by_r_721 * i_dx_547 + i_adj_by_r_722 * i_dx_575 + i_adj_by_r_753 * i_dx_547;
-        f[i_a_545][1] += i_adj_by_r_645 * i_dy_547 + i_adj_by_r_721 * i_dy_547 + i_adj_by_r_722 * i_dy_575 + i_adj_by_r_753 * i_dy_547;
-        f[i_a_545][2] += i_adj_by_r_645 * i_dz_547 + i_adj_by_r_721 * i_dz_547 + i_adj_by_r_722 * i_dz_575 + i_adj_by_r_753 * i_dz_547;
+        double i_dx_818 = i_px_8 - i_px_785;
+        double i_dy_818 = i_py_8 - i_py_785;
+        double i_dz_818 = i_pz_8 - i_pz_785;
+        double i_adj_by_r_900 = i_fun_acc_adj_850 * i_recip_b_819;
+        i_fx_178 += - i_adj_by_r_900 * i_dx_786;
+        i_fy_178 += - i_adj_by_r_900 * i_dy_786;
+        i_fz_178 += - i_adj_by_r_900 * i_dz_786;
+        double i_adj_acos_978 = 2 * i_bultin_847 * i_mul_adj_779 * i_mul_val_836 * i_param_820 * i_recip_837 * i_v_791 * i_v_833;
+        double i_adj_by_r_979 = (i_recip_b_819 - i_cos_819 * i_recip_a_84) * i_adj_acos_978 * i_recip_a_84;
+        i_fx_178 += - i_adj_by_r_979 * i_dx_9;
+        i_fy_178 += - i_adj_by_r_979 * i_dy_9;
+        i_fz_178 += - i_adj_by_r_979 * i_dz_9;
+        i_fx_182 += i_adj_by_r_979 * i_dx_9;
+        i_fy_182 += i_adj_by_r_979 * i_dy_9;
+        i_fz_182 += i_adj_by_r_979 * i_dz_9;
+        double i_adj_by_r_980 = (i_recip_a_84 - i_cos_819 * i_recip_b_819) * i_adj_acos_978 * i_recip_b_819;
+        i_fx_178 += - i_adj_by_r_980 * i_dx_786;
+        i_fy_178 += - i_adj_by_r_980 * i_dy_786;
+        i_fz_178 += - i_adj_by_r_980 * i_dz_786;
+        double i_adj_by_r_981 = - i_adj_acos_978 * i_recip_a_84 * i_recip_b_819;
+        i_fx_182 += - i_adj_by_r_981 * i_dx_818;
+        i_fy_182 += - i_adj_by_r_981 * i_dy_818;
+        i_fz_182 += - i_adj_by_r_981 * i_dz_818;
+        double i_adj_1008 = 3 * i_bultin_847 * i_mul_adj_779 * i_mul_val_839 * i_v_791 * i_v_841 * i_v_844 * i_v_844;
+        double i_adj_by_r_1010 = i_adj_1008 * i_recip_a_84;
+        i_fx_178 += - i_adj_by_r_1010 * i_dx_9;
+        i_fy_178 += - i_adj_by_r_1010 * i_dy_9;
+        i_fz_178 += - i_adj_by_r_1010 * i_dz_9;
+        i_fx_182 += i_adj_by_r_1010 * i_dx_9;
+        i_fy_182 += i_adj_by_r_1010 * i_dy_9;
+        i_fz_182 += i_adj_by_r_1010 * i_dz_9;
+        double i_adj_by_r_1012 = - i_adj_1008 * i_recip_b_819;
+        i_fx_178 += - i_adj_by_r_1012 * i_dx_786;
+        i_fy_178 += - i_adj_by_r_1012 * i_dy_786;
+        i_fz_178 += - i_adj_by_r_1012 * i_dz_786;
+        f[i_a_784][0] += i_adj_by_r_900 * i_dx_786 + i_adj_by_r_980 * i_dx_786 + i_adj_by_r_981 * i_dx_818 + i_adj_by_r_1012 * i_dx_786;
+        f[i_a_784][1] += i_adj_by_r_900 * i_dy_786 + i_adj_by_r_980 * i_dy_786 + i_adj_by_r_981 * i_dy_818 + i_adj_by_r_1012 * i_dy_786;
+        f[i_a_784][2] += i_adj_by_r_900 * i_dz_786 + i_adj_by_r_980 * i_dz_786 + i_adj_by_r_981 * i_dz_818 + i_adj_by_r_1012 * i_dz_786;
       }
-      double i_adj_by_r_780 = i_bultin_117 * i_mul_adj_290 * i_param_113 * i_param_114 * i_v_236 / ((double) i_r_13);
-      i_fx_127 += - i_adj_by_r_780 * i_dx_9;
-      i_fy_127 += - i_adj_by_r_780 * i_dy_9;
-      i_fz_127 += - i_adj_by_r_780 * i_dz_9;
-      i_fx_131 += i_adj_by_r_780 * i_dx_9;
-      i_fy_131 += i_adj_by_r_780 * i_dy_9;
-      i_fz_131 += i_adj_by_r_780 * i_dz_9;
-      f[i_a_7][0] += i_fx_131;
-      f[i_a_7][1] += i_fy_131;
-      f[i_a_7][2] += i_fz_131;
+      double i_adj_by_r_1039 = i_bultin_168 * i_mul_adj_402 * i_param_164 * i_param_165 * i_recip_a_84 * i_v_292;
+      i_fx_178 += - i_adj_by_r_1039 * i_dx_9;
+      i_fy_178 += - i_adj_by_r_1039 * i_dy_9;
+      i_fz_178 += - i_adj_by_r_1039 * i_dz_9;
+      i_fx_182 += i_adj_by_r_1039 * i_dx_9;
+      i_fy_182 += i_adj_by_r_1039 * i_dy_9;
+      i_fz_182 += i_adj_by_r_1039 * i_dz_9;
+      f[i_a_7][0] += i_fx_182;
+      f[i_a_7][1] += i_fy_182;
+      f[i_a_7][2] += i_fz_182;
     }
     i_a_2 += i_a_5;
-    f[i_i_3][0] += i_fx_127;
-    f[i_i_3][1] += i_fy_127;
-    f[i_i_3][2] += i_fz_127;
+    f[i_i_3][0] += i_fx_178;
+    f[i_i_3][1] += i_fy_178;
+    f[i_i_3][2] += i_fz_178;
   }
-  eng_vdwl += i_a_2 / ((double) 2);
+  eng_vdwl += i_a_2 * i_mul_adj_175;
 
   if (vflag_fdotr) virial_fdotr_compute();
-  fesetenv(FE_DFL_ENV);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -324,6 +379,8 @@ void PairPotGen::compute(int eflag, int vflag) {
 void PairPotGen::init_style() {
   if (force->newton_pair == 0)
     error->all(FLERR, "Pair style pot/gen requires atom IDs");
+  if (atom->tag_enable == 0)
+    error->all(FLERR, "Pair style pot/gen requires newton pair on");
   int irequest = neighbor->request(this, instance_me);
   neighbor->requests[irequest]->half = 0;
   neighbor->requests[irequest]->full = 1;
@@ -360,6 +417,12 @@ void PairPotGen::allocate() {
   memory->create(param_c, n+1, n+1, n+1, "pair:c");
   memory->create(param_d, n+1, n+1, n+1, "pair:d");
   memory->create(param_cos_theta_0, n+1, n+1, n+1, "pair:cos_theta_0");
+  memory->create(outlined_param_0, n+1, n+1, n+1, "pair:outlined:0");
+  memory->create(outlined_param_1, n+1, n+1, "pair:outlined:1");
+  memory->create(outlined_param_2, n+1, n+1, "pair:outlined:2");
+  memory->create(outlined_param_3, n+1, n+1, "pair:outlined:3");
+  memory->create(outlined_param_4, n+1, n+1, "pair:outlined:4");
+  memory->create(outlined_param_5, n+1, n+1, "pair:outlined:5");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -466,6 +529,38 @@ void PairPotGen::coeff(int narg, char **arg) {
       }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      for (int i_ty_3 = 1; i_ty_3 <= atom->ntypes; i_ty_3++) {
+        outlined_param_0[i_ty_1][i_ty_2][i_ty_3] = 1 + param_c[i_ty_1][i_ty_2][i_ty_3] * param_c[i_ty_1][i_ty_2][i_ty_3] / ((double) (param_d[i_ty_1][i_ty_2][i_ty_3] * param_d[i_ty_1][i_ty_2][i_ty_3]));
+      }
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_1[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] / ((double) 100000000), 0 - 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_2[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] / ((double) 100000000), 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_3[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] * 1 / ((double) 10000000000000), 0 - 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_4[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] * 1 / ((double) 10000000000000), 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_5[i_ty_1][i_ty_2] = 0 - 1 / ((double) (2 * param_n[i_ty_1][i_ty_2])) - 1;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */

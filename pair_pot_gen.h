@@ -55,6 +55,13 @@ class PairPotGen : public Pair {
   double ***param_d;
   double ***param_cos_theta_0;
 
+  double ***outlined_param_0;
+  double **outlined_param_1;
+  double **outlined_param_2;
+  double **outlined_param_3;
+  double **outlined_param_4;
+  double **outlined_param_5;
+
 };
 
 }  // namespace LAMMPS_NS

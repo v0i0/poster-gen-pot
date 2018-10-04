@@ -18,6 +18,6 @@ function phi_3(i : atom; j : atom; k : atom; r_ij : distance; r_ik : distance; t
     exp(gamma * sigma / (r_ij - a * sigma)) * 
     exp(gamma(i, k) * sigma(i, k) / (r_ik - a(i, k) * sigma(i, k)));
 
-energy 1/2*sum(i : all_atoms) sum(j : neighbors_half(i, r_C(i, j))) implicit(i: i; j: j) phi_2(r);
-energy 1/2*sum(i : all_atoms) sum(j : neighbors(i, r_C(i, j))) sum(k : neighbors_half(i, r_C(i, k), j))
+energy sum(i : all_atoms) sum(j : neighbors_half(i, r_C(i, j))) implicit(i: i; j: j) phi_2(r);
+energy sum(i : all_atoms) sum(j : neighbors(i, r_C(i, j))) sum(k : neighbors(i, r_C(i, k), > j))
   implicit(i : i; j : j; k : k) phi_3(r(i, j), r(i, k), theta(j, i, k));

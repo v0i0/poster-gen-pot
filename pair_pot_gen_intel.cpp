@@ -74,6 +74,12 @@ PairPotGenIntel::~PairPotGenIntel() {
     memory->destroy(param_c);
     memory->destroy(param_d);
     memory->destroy(param_cos_theta_0);
+    memory->destroy(outlined_param_0);
+    memory->destroy(outlined_param_1);
+    memory->destroy(outlined_param_2);
+    memory->destroy(outlined_param_3);
+    memory->destroy(outlined_param_4);
+    memory->destroy(outlined_param_5);
   }
 }
 
@@ -132,15 +138,29 @@ void PairPotGenIntel::compute(int eflag, int vflag,
   int ovflag = 0;
   if (vflag_fdotr) ovflag = 2;
   else if (vflag) ovflag = 1;
-  if (eflag) {
-    eval<1>(1, ovflag, buffers, fc, 0, offload_end);
-    eval<1>(0, ovflag, buffers, fc, host_start, inum);
+  onetype = atom->ntypes == 1;
+  if (onetype) {
+    if (eflag) {
+      eval<1, 1>(1, ovflag, buffers, fc, 0, offload_end);
+      eval<1, 1>(0, ovflag, buffers, fc, host_start, inum);
+    } else {
+      eval<1, 0>(1, ovflag, buffers, fc, 0, offload_end);
+      eval<1, 0>(0, ovflag, buffers, fc, host_start, inum);
+    }
   } else {
-    eval<0>(1, ovflag, buffers, fc, 0, offload_end);
-    eval<0>(0, ovflag, buffers, fc, host_start, inum);
+    if (eflag) {
+      eval<0, 1>(1, ovflag, buffers, fc, 0, offload_end);
+      eval<0, 1>(0, ovflag, buffers, fc, host_start, inum);
+    } else {
+      eval<0, 0>(1, ovflag, buffers, fc, 0, offload_end);
+      eval<0, 0>(0, ovflag, buffers, fc, host_start, inum);
+    }
   }
 }
-template <int EFLAG, class flt_t, class acc_t>
+
+/* ---------------------------------------------------------------------- */
+
+template <int ONETYPE, int EFLAG, class flt_t, class acc_t>
 void PairPotGenIntel::eval(const int offload, const int vflag,
                         IntelBuffers<flt_t,acc_t> *buffers,
                         const ForceConst<flt_t> &fc,
@@ -159,6 +179,7 @@ void PairPotGenIntel::eval(const int offload, const int vflag,
   ATOM_T * _noalias const x = buffers->get_x(offload);
 
   const int * _noalias const numneigh = list->numneigh;
+  const int * _noalias const numneighhalf = buffers->get_atombin();
   const int * _noalias const cnumneigh = buffers->cnumneigh(list);
   const int * _noalias const firstneigh = buffers->firstneigh(list);
   const int eatom = this->eflag_atom;
@@ -204,332 +225,424 @@ void PairPotGenIntel::eval(const int offload, const int vflag,
       memset(f + minlocal, 0, f_stride * sizeof(FORCE_T));
 
 
+  __mmask8 t_0 = 0xFF;
       __m512d i_a_2 = _mm512_setzero_pd();
-      __m512d i_mul_adj_124 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_set1_pd(2)));
-      for (int t_0 = iifrom; t_0 < iito; t_0 += 8) {
-        __m512i i_i_3 = _mm512_add_epi32(_mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), _mm512_set1_epi32(t_0));
-        __mmask8 t_1 = _mm512_kand(0xFF, _mm512_cmplt_epi32_mask(i_i_3, _mm512_set1_epi32(iito)));
-        __m512d i_px_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_1, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].x, 4);
-        __m512d i_py_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_1, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].y, 4);
-        __m512d i_pz_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_1, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].z, 4);
-        __m512i i_ty_4 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_1, _mm512_slli_epi32(i_i_3, 3), &x[0].w, 4);
+      __m512d i_mul_adj_175 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_set1_pd(2)));
+      for (int t_1 = iifrom; t_1 < iito; t_1 += 8) {
+        __m512i i_i_3 = _mm512_add_epi32(_mm512_set_epi32(15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 0), _mm512_set1_epi32(t_1));
+        __mmask8 t_2 = _mm512_kand(0xFF, _mm512_cmplt_epi32_mask(i_i_3, _mm512_set1_epi32(iito)));
+        __m512d i_px_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_2, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].x, 4);
+        __m512d i_py_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_2, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].y, 4);
+        __m512d i_pz_4 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_2, _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3)), &x[0].z, 4);
+        __m512i i_ty_4 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_2, _mm512_slli_epi32(i_i_3, 3), &x[0].w, 4);
         __m512d i_a_5 = _mm512_setzero_pd();
-        __m512d i_fx_127 = _mm512_setzero_pd();
-        __m512d i_fy_127 = _mm512_setzero_pd();
-        __m512d i_fz_127 = _mm512_setzero_pd();
-        __m512i i_i_6 = _mm512_setzero_epi32();
-        __m512i t_2 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_1, i_i_3, numneigh, 4);
+        __m512d i_fx_178 = _mm512_setzero_pd();
+        __m512d i_fy_178 = _mm512_setzero_pd();
+        __m512d i_fz_178 = _mm512_setzero_pd();
+        __m512i listnum_i_snlist_1047 = _mm512_setzero_epi32();
+        __m512i listhalfnum_i_snlist_1047 = _mm512_setzero_epi32();
+        __m512i listentry_i_snlist_1047[neighbor->oneatom];
+        __m512i i_scounter_1048 = _mm512_setzero_epi32();
+        __m512i t_3 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_2, i_i_3, numneigh, 4);
         for (;;) {
-          __mmask8 t_3 = _mm512_kand(t_1, _mm512_cmplt_epi32_mask(i_i_6, t_2));
-          if (_mm512_kortestz(t_3, t_3)) break;
-          __m512i i_a_7 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_3, _mm512_add_epi32(_mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_3, i_i_3, cnumneigh, 4), i_i_6), firstneigh, 4);
-          __m512d i_px_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].x, 4);
-          __m512d i_py_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].y, 4);
-          __m512d i_pz_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].z, 4);
-          __m512i i_ty_8 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_3, _mm512_slli_epi32(i_a_7, 3), &x[0].w, 4);
+          __mmask8 t_4 = _mm512_kand(t_2, _mm512_cmplt_epi32_mask(i_scounter_1048, t_3));
+          if (_mm512_kortestz(t_4, t_4)) break;
+          __m512i i_satom_1049 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_4, _mm512_add_epi32(_mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_4, i_i_3, cnumneigh, 4), i_scounter_1048), firstneigh, 4);
+          __m512d i_dx_1049 = _mm512_sub_pd(i_px_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_4, _mm512_castsi512_si256(_mm512_slli_epi32(i_satom_1049, 3)), &x[0].x, 4));
+          __m512d i_dy_1049 = _mm512_sub_pd(i_py_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_4, _mm512_castsi512_si256(_mm512_slli_epi32(i_satom_1049, 3)), &x[0].y, 4));
+          __m512d i_dz_1049 = _mm512_sub_pd(i_pz_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_4, _mm512_castsi512_si256(_mm512_slli_epi32(i_satom_1049, 3)), &x[0].z, 4));
+          __mmask8 t_5 = _mm512_kand(_mm512_cmpnle_pd_mask(_mm512_add_pd(_mm512_mul_pd(i_dx_1049, i_dx_1049), _mm512_add_pd(_mm512_mul_pd(i_dy_1049, i_dy_1049), _mm512_mul_pd(i_dz_1049, i_dz_1049))), (ONETYPE ? _mm512_set1_pd(this->cutsq[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_4, _mm512_castsi512_si256(_mm512_add_epi32(_mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_4, _mm512_slli_epi32(i_satom_1049, 3), &x[0].w, 4), _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->cutsq[0][0], 8))), t_4);
+          if (! _mm512_kortestz(t_5, t_5)) {
+            i_scounter_1048 = _mm512_mask_add_epi32(i_scounter_1048, t_5, i_scounter_1048, _mm512_set1_epi32(1));
+            continue;
+          }
+          _mm512_mask_i32scatter_epi32(listentry_i_snlist_1047, t_4, _mm512_add_epi32(_mm512_set_epi32(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0), _mm512_slli_epi32(listnum_i_snlist_1047, 3)), i_satom_1049, 4);
+          listnum_i_snlist_1047 = _mm512_mask_add_epi32(listnum_i_snlist_1047, t_4, listnum_i_snlist_1047, _mm512_set1_epi32(1));
+          i_scounter_1048 = _mm512_add_epi32(i_scounter_1048, _mm512_set1_epi32(1));
+        }
+        __m512i i_i_6 = _mm512_setzero_epi32();
+        __m512i t_6 = listnum_i_snlist_1047;
+        for (;;) {
+          __mmask8 t_7 = _mm512_kand(t_2, _mm512_cmplt_epi32_mask(i_i_6, t_6));
+          if (_mm512_kortestz(t_7, t_7)) break;
+          __m512i i_a_7 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_7, _mm512_add_epi32(_mm512_set_epi32(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0), _mm512_slli_epi32(i_i_6, 3)), listentry_i_snlist_1047, 4);
+          __m512d i_px_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].x, 4);
+          __m512d i_py_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].y, 4);
+          __m512d i_pz_8 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3)), &x[0].z, 4);
+          __m512i i_ty_8 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_7, _mm512_slli_epi32(i_a_7, 3), &x[0].w, 4);
           __m512d i_dx_9 = _mm512_sub_pd(i_px_4, i_px_8);
           __m512d i_dy_9 = _mm512_sub_pd(i_py_4, i_py_8);
           __m512d i_dz_9 = _mm512_sub_pd(i_pz_4, i_pz_8);
           __m512d i_rsq_9 = _mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_9, i_dx_9), _mm512_mul_pd(i_dy_9, i_dy_9)), _mm512_mul_pd(i_dz_9, i_dz_9));
-          __m512d i_param_10 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8);
-          __m512d i_param_11 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8);
+          __m512d i_param_10 = (ONETYPE ? _mm512_set1_pd(this->param_R[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8));
+          __m512d i_param_11 = (ONETYPE ? _mm512_set1_pd(this->param_D[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8));
           __m512d i_v_12 = _mm512_add_pd(i_param_10, i_param_11);
-          __mmask8 t_4 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_9, _mm512_mul_pd(i_v_12, i_v_12)), t_3);
-          if (! _mm512_kortestz(t_4, t_4)) {
-            i_i_6 = _mm512_mask_add_epi32(i_i_6, t_4, i_i_6, _mm512_set1_epi32(1));
+          __mmask8 t_8 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_9, _mm512_mul_pd(i_v_12, i_v_12)), t_7);
+          if (! _mm512_kortestz(t_8, t_8)) {
+            i_i_6 = _mm512_mask_add_epi32(i_i_6, t_8, i_i_6, _mm512_set1_epi32(1));
             continue;
           }
           __m512d i_r_13 = _mm512_sqrt_pd(i_rsq_9);
           __m512d i_v_14;
           __m512d i_v_17 = _mm512_sub_pd(i_param_10, i_param_11);
-          __m512d i_param_36 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_A[0][0], 8);
-          __m512d i_param_37 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_lambda_1[0][0], 8);
-          __m512d i_bultin_40 = _mm512_exp_pd(_mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_param_37, i_r_13)));
-          __m512d i_param_42 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_beta[0][0], 8);
-          __m512d i_param_105 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_n[0][0], 8);
-          __m512d i_v_110 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_105))));
-          __m512d i_param_113 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_B[0][0], 8);
-          __m512d i_param_114 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_3, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_lambda_2[0][0], 8);
-          __m512d i_bultin_117 = _mm512_exp_pd(_mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_param_114, i_r_13)));
-          __m512d i_v_119 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_param_113, i_bultin_117));
-          __m512d i_a_168 = _mm512_setzero_pd();
-          __m512i i_i_169 = _mm512_setzero_epi32();
-          __m512i t_5 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_3, i_i_3, numneigh, 4);
+          __m512d i_param_40 = (ONETYPE ? _mm512_set1_pd(this->param_A[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_A[0][0], 8));
+          __m512d i_param_41 = (ONETYPE ? _mm512_set1_pd(this->param_lambda_1[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_lambda_1[0][0], 8));
+          __m512d i_bultin_44 = _mm512_exp_pd(_mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_param_41, i_r_13)));
+          __m512d i_mul_val_45 = _mm512_mul_pd(i_bultin_44, i_param_40);
+          __m512d i_param_46 = (ONETYPE ? _mm512_set1_pd(this->param_beta[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_beta[0][0], 8));
+          __m512d i_recip_a_84 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_r_13));
+          __m512d i_param_115 = (ONETYPE ? _mm512_set1_pd(this->param_n[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_n[0][0], 8));
+          __m512d i_param_164 = (ONETYPE ? _mm512_set1_pd(this->param_B[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_B[0][0], 8));
+          __m512d i_param_165 = (ONETYPE ? _mm512_set1_pd(this->param_lambda_2[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->param_lambda_2[0][0], 8));
+          __m512d i_bultin_168 = _mm512_exp_pd(_mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_param_165, i_r_13)));
+          __m512d i_v_170 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_bultin_168, i_param_164));
+          __m512d i_a_223 = _mm512_setzero_pd();
+          __m512i i_i_224 = _mm512_setzero_epi32();
+          __m512i t_9 = listnum_i_snlist_1047;
           for (;;) {
-            __mmask8 t_6 = _mm512_kand(t_3, _mm512_cmplt_epi32_mask(i_i_169, t_5));
-            if (_mm512_kortestz(t_6, t_6)) break;
-            __m512i i_a_170 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_6, _mm512_add_epi32(_mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_6, i_i_3, cnumneigh, 4), i_i_169), firstneigh, 4);
-            __m512i i_ty_171 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_6, _mm512_slli_epi32(i_a_170, 3), &x[0].w, 4);
-            __m512d i_dx_172 = _mm512_sub_pd(i_px_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_170, 3)), &x[0].x, 4));
-            __m512d i_dy_172 = _mm512_sub_pd(i_py_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_170, 3)), &x[0].y, 4));
-            __m512d i_dz_172 = _mm512_sub_pd(i_pz_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_170, 3)), &x[0].z, 4));
-            __m512d i_rsq_172 = _mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_172, i_dx_172), _mm512_mul_pd(i_dy_172, i_dy_172)), _mm512_mul_pd(i_dz_172, i_dz_172));
-            __m512d i_param_173 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8);
-            __m512d i_param_174 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8);
-            __m512d i_v_175 = _mm512_add_pd(i_param_173, i_param_174);
-            __mmask8 t_7 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_172, _mm512_mul_pd(i_v_175, i_v_175)), t_6);
-            if (! _mm512_kortestz(t_7, t_7)) {
-              i_i_169 = _mm512_mask_add_epi32(i_i_169, t_7, i_i_169, _mm512_set1_epi32(1));
+            __mmask8 t_10 = _mm512_kand(t_7, _mm512_cmplt_epi32_mask(i_i_224, t_9));
+            if (_mm512_kortestz(t_10, t_10)) break;
+            __m512i i_a_225 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_10, _mm512_add_epi32(_mm512_set_epi32(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0), _mm512_slli_epi32(i_i_224, 3)), listentry_i_snlist_1047, 4);
+            __m512i i_ty_226 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_10, _mm512_slli_epi32(i_a_225, 3), &x[0].w, 4);
+            __m512d i_dx_227 = _mm512_sub_pd(i_px_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_225, 3)), &x[0].x, 4));
+            __m512d i_dy_227 = _mm512_sub_pd(i_py_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_225, 3)), &x[0].y, 4));
+            __m512d i_dz_227 = _mm512_sub_pd(i_pz_4, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_225, 3)), &x[0].z, 4));
+            __m512d i_rsq_227 = _mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_227, i_dx_227), _mm512_mul_pd(i_dy_227, i_dy_227)), _mm512_mul_pd(i_dz_227, i_dz_227));
+            __m512d i_param_228 = (ONETYPE ? _mm512_set1_pd(this->param_R[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8));
+            __m512d i_param_229 = (ONETYPE ? _mm512_set1_pd(this->param_D[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8));
+            __m512d i_v_230 = _mm512_add_pd(i_param_228, i_param_229);
+            __mmask8 t_11 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_227, _mm512_mul_pd(i_v_230, i_v_230)), t_10);
+            if (! _mm512_kortestz(t_11, t_11)) {
+              i_i_224 = _mm512_mask_add_epi32(i_i_224, t_11, i_i_224, _mm512_set1_epi32(1));
               continue;
             }
-            __mmask8 t_8 = _mm512_kand(_mm512_cmpeq_epi32_mask(i_a_170, i_a_7), t_6);
-            if (! _mm512_kortestz(t_8, t_8)) {
-              i_i_169 = _mm512_mask_add_epi32(i_i_169, t_8, i_i_169, _mm512_set1_epi32(1));
+            __mmask8 t_12 = _mm512_kand(_mm512_cmpeq_epi32_mask(i_a_225, i_a_7), t_10);
+            if (! _mm512_kortestz(t_12, t_12)) {
+              i_i_224 = _mm512_mask_add_epi32(i_i_224, t_12, i_i_224, _mm512_set1_epi32(1));
               continue;
             }
-            __m512d i_r_176 = _mm512_sqrt_pd(i_rsq_172);
-            __m512d i_v_177;
-            __m512d i_v_180 = _mm512_sub_pd(i_param_173, i_param_174);
-            __mmask8 t_9 = _mm512_kand(t_6, _mm512_cmple_pd_mask(i_r_176, i_v_180));
-            __mmask8 t_10 = _mm512_kandn(t_9, t_6);
-            if (! _mm512_kortestz(t_9, t_9)) {
-              i_v_177 = _mm512_mask_blend_pd(t_9, i_v_177, _mm512_set1_pd(1));
+            __m512d i_r_231 = _mm512_sqrt_pd(i_rsq_227);
+            __m512d i_v_232;
+            __m512d i_v_235 = _mm512_sub_pd(i_param_228, i_param_229);
+            __mmask8 t_13 = _mm512_kand(t_10, _mm512_cmple_pd_mask(i_r_231, i_v_235));
+            __mmask8 t_14 = _mm512_kandn(t_13, t_10);
+            if (! _mm512_kortestz(t_13, t_13)) {
+              i_v_232 = _mm512_mask_blend_pd(t_13, i_v_232, _mm512_set1_pd(1));
             }
-            if(! _mm512_kortestz(t_10, t_10)) {
-              __mmask8 t_11 = _mm512_kand(t_10, _mm512_kand(_mm512_cmplt_pd_mask(i_r_176, i_v_175), _mm512_cmplt_pd_mask(i_v_180, i_r_176)));
-              __mmask8 t_12 = _mm512_kandn(t_11, t_10);
-              if (! _mm512_kortestz(t_11, t_11)) {
-                i_v_177 = _mm512_mask_blend_pd(t_11, i_v_177, _mm512_sub_pd(i_mul_adj_124, _mm512_mul_pd(_mm512_sin_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_176, i_param_173), _mm512_set1_pd(M_PI)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_174)))), _mm512_recip_pd(_mm512_set1_pd(2)))));
+            if(! _mm512_kortestz(t_14, t_14)) {
+              __mmask8 t_15 = _mm512_kand(t_14, _mm512_kand(_mm512_cmplt_pd_mask(i_r_231, i_v_230), _mm512_cmplt_pd_mask(i_v_235, i_r_231)));
+              __mmask8 t_16 = _mm512_kandn(t_15, t_14);
+              if (! _mm512_kortestz(t_15, t_15)) {
+                i_v_232 = _mm512_mask_blend_pd(t_15, i_v_232, _mm512_sub_pd(i_mul_adj_175, _mm512_mul_pd(i_mul_adj_175, _mm512_sin_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_231, i_param_228), _mm512_set1_pd(M_PI)), i_mul_adj_175), _mm512_recip_pd(i_param_229))))));
               }
-              if(! _mm512_kortestz(t_12, t_12)) {
-                __mmask8 t_13 = _mm512_kand(t_12, _mm512_cmpnlt_pd_mask(i_r_176, i_v_175));
-                __mmask8 t_14 = _mm512_kandn(t_13, t_12);
-                if (! _mm512_kortestz(t_13, t_13)) {
-                  i_v_177 = _mm512_mask_blend_pd(t_13, i_v_177, _mm512_setzero_pd());
+              if(! _mm512_kortestz(t_16, t_16)) {
+                __mmask8 t_17 = _mm512_kand(t_16, _mm512_cmpnlt_pd_mask(i_r_231, i_v_230));
+                __mmask8 t_18 = _mm512_kandn(t_17, t_16);
+                if (! _mm512_kortestz(t_17, t_17)) {
+                  i_v_232 = _mm512_mask_blend_pd(t_17, i_v_232, _mm512_setzero_pd());
                 }
-                if(! _mm512_kortestz(t_14, t_14)) {
-                  error->one(FLERR,"else no expr");
-                  error->one(FLERR,"else no expr");
-                  error->one(FLERR,"else no expr");
-                  error->one(FLERR,"else no expr");
+                if(! _mm512_kortestz(t_18, t_18)) {
                   error->one(FLERR,"else no expr");
                 }
               }
             }
-            __m512d i_param_203 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_c[0][0][0], 8);
-            __m512d i_v_204 = _mm512_mul_pd(i_param_203, i_param_203);
-            __m512d i_param_205 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_d[0][0][0], 8);
-            __m512d i_v_206 = _mm512_mul_pd(i_param_205, i_param_205);
-            __m512d i_v_214 = _mm512_sub_pd(_mm512_mul_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_9, i_dx_172), _mm512_mul_pd(i_dy_9, i_dy_172)), _mm512_mul_pd(i_dz_9, i_dz_172)), _mm512_recip_pd(_mm512_mul_pd(i_r_13, i_r_176))), _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_cos_theta_0[0][0][0], 8));
-            __m512d i_param_220 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_lambda_3[0][0][0], 8);
-            __m512d i_v_224 = _mm512_sub_pd(i_r_13, i_r_176);
-            i_a_168 = _mm512_mask_add_pd(i_a_168, t_6, i_a_168, _mm512_mul_pd(_mm512_mul_pd(i_v_177, _mm512_mul_pd(_mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_6, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_171, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_gamma[0][0][0], 8), _mm512_sub_pd(_mm512_add_pd(_mm512_set1_pd(1), _mm512_mul_pd(i_v_204, _mm512_recip_pd(i_v_206))), _mm512_mul_pd(i_v_204, _mm512_recip_pd(_mm512_add_pd(i_v_206, _mm512_mul_pd(i_v_214, i_v_214))))))), _mm512_exp_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_param_220, i_param_220), i_param_220), _mm512_mul_pd(_mm512_mul_pd(i_v_224, i_v_224), i_v_224)))));
-            i_i_169 = _mm512_add_epi32(i_i_169, _mm512_set1_epi32(1));
+            __m512d i_param_262 = (ONETYPE ? _mm512_set1_pd(this->param_c[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_c[0][0][0], 8));
+            __m512d i_param_264 = (ONETYPE ? _mm512_set1_pd(this->param_d[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_d[0][0][0], 8));
+            __m512d i_v_274 = _mm512_sub_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_227, i_dx_9), _mm512_mul_pd(i_dy_227, i_dy_9)), _mm512_mul_pd(i_dz_227, i_dz_9)), i_recip_a_84), _mm512_recip_pd(i_r_231)), (ONETYPE ? _mm512_set1_pd(this->param_cos_theta_0[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_cos_theta_0[0][0][0], 8)));
+            __m512d i_param_281 = (ONETYPE ? _mm512_set1_pd(this->param_lambda_3[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_lambda_3[0][0][0], 8));
+            __m512d i_v_285 = _mm512_sub_pd(i_r_13, i_r_231);
+            i_a_223 = _mm512_mask_add_pd(i_a_223, t_10, i_a_223, _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd((ONETYPE ? _mm512_set1_pd(this->outlined_param_0[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->outlined_param_0[0][0][0], 8)), _mm512_mul_pd(_mm512_mul_pd(i_param_262, i_param_262), _mm512_recip_pd(_mm512_add_pd(_mm512_mul_pd(i_param_264, i_param_264), _mm512_mul_pd(i_v_274, i_v_274))))), (ONETYPE ? _mm512_set1_pd(this->param_gamma[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_10, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_226, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_gamma[0][0][0], 8))), _mm512_mul_pd(_mm512_exp_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_param_281, i_param_281), _mm512_mul_pd(i_param_281, i_v_285)), _mm512_mul_pd(i_v_285, i_v_285))), i_v_232)));
+            i_i_224 = _mm512_add_epi32(i_i_224, _mm512_set1_epi32(1));
           }
-          __m512d i_mul_val_229 = _mm512_mul_pd(i_param_42, i_a_168);
-          __m512d i_v_232 = _mm512_add_pd(_mm512_set1_pd(1), _mm512_pow_pd(i_mul_val_229, i_param_105));
-          __m512d i_v_236 = _mm512_pow_pd(i_v_232, i_v_110);
-          __m512d i_v_246 = _mm512_add_pd(_mm512_mul_pd(i_param_36, i_bultin_40), _mm512_mul_pd(i_v_236, i_v_119));
-          __m512d i_fun_acc_adj_249 = _mm512_setzero_pd();
-          __mmask8 t_15 = _mm512_kand(t_3, _mm512_cmple_pd_mask(i_r_13, i_v_17));
-          __mmask8 t_16 = _mm512_kandn(t_15, t_3);
-          if (! _mm512_kortestz(t_15, t_15)) {
-            i_v_14 = _mm512_mask_blend_pd(t_15, i_v_14, _mm512_set1_pd(1));
+          __m512d i_mul_val_290 = _mm512_mul_pd(i_a_223, i_param_46);
+          __m512d i_v_292;
+          __mmask8 t_19 = _mm512_kand(t_7, _mm512_cmpnle_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_3[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_3[0][0], 8))));
+          __mmask8 t_20 = _mm512_kandn(t_19, t_7);
+          if (! _mm512_kortestz(t_19, t_19)) {
+            i_v_292 = _mm512_mask_blend_pd(t_19, i_v_292, _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_sqrt_pd(i_mul_val_290))));
           }
-          if(! _mm512_kortestz(t_16, t_16)) {
-            __mmask8 t_17 = _mm512_kand(t_16, _mm512_kand(_mm512_cmplt_pd_mask(i_r_13, i_v_12), _mm512_cmplt_pd_mask(i_v_17, i_r_13)));
-            __mmask8 t_18 = _mm512_kandn(t_17, t_16);
-            if (! _mm512_kortestz(t_17, t_17)) {
-              __m512d i_mul_val_28 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_13, i_param_10), _mm512_set1_pd(M_PI)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_11)));
-              i_v_14 = _mm512_mask_blend_pd(t_17, i_v_14, _mm512_sub_pd(i_mul_adj_124, _mm512_mul_pd(_mm512_sin_pd(i_mul_val_28), _mm512_recip_pd(_mm512_set1_pd(2)))));
-              i_fun_acc_adj_249 = _mm512_mask_add_pd(i_fun_acc_adj_249, t_17, i_fun_acc_adj_249, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(M_PI), _mm512_cos_pd(i_mul_val_28)), _mm512_mul_pd(i_mul_adj_124, i_v_246)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(4), i_param_11)))));
+          if(! _mm512_kortestz(t_20, t_20)) {
+            __mmask8 t_21 = _mm512_kand(t_20, _mm512_cmpnle_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_1[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_20, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_1[0][0], 8))));
+            __mmask8 t_22 = _mm512_kandn(t_21, t_20);
+            if (! _mm512_kortestz(t_21, t_21)) {
+              i_v_292 = _mm512_mask_blend_pd(t_21, i_v_292, _mm512_mul_pd(_mm512_sub_pd(_mm512_set1_pd(1), _mm512_mul_pd(_mm512_pow_pd(i_mul_val_290, _mm512_sub_pd(_mm512_setzero_pd(), i_param_115)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_115)))), _mm512_recip_pd(_mm512_sqrt_pd(i_mul_val_290))));
             }
-            if(! _mm512_kortestz(t_18, t_18)) {
-              __mmask8 t_19 = _mm512_kand(t_18, _mm512_cmpnlt_pd_mask(i_r_13, i_v_12));
-              __mmask8 t_20 = _mm512_kandn(t_19, t_18);
-              if (! _mm512_kortestz(t_19, t_19)) {
-                i_v_14 = _mm512_mask_blend_pd(t_19, i_v_14, _mm512_setzero_pd());
+            if(! _mm512_kortestz(t_22, t_22)) {
+              __mmask8 t_23 = _mm512_kand(t_22, _mm512_cmplt_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_4[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_4[0][0], 8))));
+              __mmask8 t_24 = _mm512_kandn(t_23, t_22);
+              if (! _mm512_kortestz(t_23, t_23)) {
+                i_v_292 = _mm512_mask_blend_pd(t_23, i_v_292, _mm512_set1_pd(1));
               }
-              if(! _mm512_kortestz(t_20, t_20)) {
-                error->one(FLERR,"else no expr");
-                error->one(FLERR,"else no expr");
+              if(! _mm512_kortestz(t_24, t_24)) {
+                __mmask8 t_25 = _mm512_kand(t_24, _mm512_cmplt_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_2[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_24, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_2[0][0], 8))));
+                __mmask8 t_26 = _mm512_kandn(t_25, t_24);
+                if (! _mm512_kortestz(t_25, t_25)) {
+                  i_v_292 = _mm512_mask_blend_pd(t_25, i_v_292, _mm512_sub_pd(_mm512_set1_pd(1), _mm512_mul_pd(_mm512_pow_pd(i_mul_val_290, i_param_115), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_115)))));
+                }
+                if(! _mm512_kortestz(t_26, t_26)) {
+                  __mmask8 t_27 = _mm512_kand(t_26, _mm512_cmple_pd_mask(i_mul_val_290, i_mul_val_290));
+                  __mmask8 t_28 = _mm512_kandn(t_27, t_26);
+                  if (! _mm512_kortestz(t_27, t_27)) {
+                    i_v_292 = _mm512_mask_blend_pd(t_27, i_v_292, _mm512_pow_pd(_mm512_add_pd(_mm512_set1_pd(1), _mm512_pow_pd(i_mul_val_290, i_param_115)), _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_115))))));
+                  }
+                  if(! _mm512_kortestz(t_28, t_28)) {
+                    error->one(FLERR,"else no expr");
+                  }
+                }
+              }
+            }
+          }
+          __m512d i_fun_acc_adj_351 = _mm512_setzero_pd();
+          __mmask8 t_29 = _mm512_kand(t_7, _mm512_cmple_pd_mask(i_r_13, i_v_17));
+          __mmask8 t_30 = _mm512_kandn(t_29, t_7);
+          if (! _mm512_kortestz(t_29, t_29)) {
+            i_v_14 = _mm512_mask_blend_pd(t_29, i_v_14, _mm512_set1_pd(1));
+          }
+          if(! _mm512_kortestz(t_30, t_30)) {
+            __mmask8 t_31 = _mm512_kand(t_30, _mm512_kand(_mm512_cmplt_pd_mask(i_r_13, i_v_12), _mm512_cmplt_pd_mask(i_v_17, i_r_13)));
+            __mmask8 t_32 = _mm512_kandn(t_31, t_30);
+            if (! _mm512_kortestz(t_31, t_31)) {
+              __m512d i_mul_val_29 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_13, i_param_10), _mm512_set1_pd(M_PI)), i_mul_adj_175), _mm512_recip_pd(i_param_11));
+              i_v_14 = _mm512_mask_blend_pd(t_31, i_v_14, _mm512_sub_pd(i_mul_adj_175, _mm512_mul_pd(i_mul_adj_175, _mm512_sin_pd(i_mul_val_29))));
+              i_fun_acc_adj_351 = _mm512_mask_add_pd(i_fun_acc_adj_351, t_31, i_fun_acc_adj_351, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_add_pd(i_mul_val_45, _mm512_mul_pd(i_v_170, i_v_292)), _mm512_set1_pd(M_PI)), _mm512_mul_pd(_mm512_cos_pd(i_mul_val_29), i_mul_adj_175)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(4), i_param_11)))));
+            }
+            if(! _mm512_kortestz(t_32, t_32)) {
+              __mmask8 t_33 = _mm512_kand(t_32, _mm512_cmpnlt_pd_mask(i_r_13, i_v_12));
+              __mmask8 t_34 = _mm512_kandn(t_33, t_32);
+              if (! _mm512_kortestz(t_33, t_33)) {
+                i_v_14 = _mm512_mask_blend_pd(t_33, i_v_14, _mm512_setzero_pd());
+              }
+              if(! _mm512_kortestz(t_34, t_34)) {
                 error->one(FLERR,"else no expr");
               }
             }
           }
-          i_a_5 = _mm512_mask_add_pd(i_a_5, t_3, i_a_5, _mm512_mul_pd(i_v_14, i_v_246));
-          __m512d i_fx_131 = _mm512_setzero_pd();
-          __m512d i_fy_131 = _mm512_setzero_pd();
-          __m512d i_fz_131 = _mm512_setzero_pd();
-          __m512d i_adj_by_r_289 = _mm512_mul_pd(i_fun_acc_adj_249, _mm512_recip_pd(i_r_13));
-          i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_3, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_289, i_dx_9)));
-          i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_3, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_289, i_dy_9)));
-          i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_3, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_289, i_dz_9)));
-          i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_3, i_fx_131, _mm512_mul_pd(i_adj_by_r_289, i_dx_9));
-          i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_3, i_fy_131, _mm512_mul_pd(i_adj_by_r_289, i_dy_9));
-          i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_3, i_fz_131, _mm512_mul_pd(i_adj_by_r_289, i_dz_9));
-          __m512d i_mul_adj_290 = _mm512_mul_pd(i_mul_adj_124, i_v_14);
-          __m512d i_adj_by_r_310 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_bultin_40, i_mul_adj_290), _mm512_mul_pd(i_param_36, i_param_37)), _mm512_recip_pd(i_r_13)));
-          i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_3, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_310, i_dx_9)));
-          i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_3, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_310, i_dy_9)));
-          i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_3, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_310, i_dz_9)));
-          i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_3, i_fx_131, _mm512_mul_pd(i_adj_by_r_310, i_dx_9));
-          i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_3, i_fy_131, _mm512_mul_pd(i_adj_by_r_310, i_dy_9));
-          i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_3, i_fz_131, _mm512_mul_pd(i_adj_by_r_310, i_dz_9));
-          __m512d i_mul_adj_540 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_mul_adj_290, i_v_119), _mm512_mul_pd(_mm512_pow_pd(i_v_232, _mm512_sub_pd(i_v_110, _mm512_set1_pd(1))), i_v_110)), _mm512_mul_pd(_mm512_pow_pd(i_mul_val_229, _mm512_sub_pd(i_param_105, _mm512_set1_pd(1))), i_param_105)), i_param_42);
-          __m512i i_i_544 = _mm512_setzero_epi32();
-          __m512i t_21 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_3, i_i_3, numneigh, 4);
+          i_a_5 = _mm512_mask_add_pd(i_a_5, t_7, i_a_5, _mm512_mul_pd(_mm512_add_pd(i_mul_val_45, _mm512_mul_pd(i_v_170, i_v_292)), i_v_14));
+          __m512d i_fx_182 = _mm512_setzero_pd();
+          __m512d i_fy_182 = _mm512_setzero_pd();
+          __m512d i_fz_182 = _mm512_setzero_pd();
+          __m512d i_adj_by_r_401 = _mm512_mul_pd(i_fun_acc_adj_351, i_recip_a_84);
+          i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_7, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_401, i_dx_9)));
+          i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_7, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_401, i_dy_9)));
+          i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_7, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_401, i_dz_9)));
+          i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_7, i_fx_182, _mm512_mul_pd(i_adj_by_r_401, i_dx_9));
+          i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_7, i_fy_182, _mm512_mul_pd(i_adj_by_r_401, i_dy_9));
+          i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_7, i_fz_182, _mm512_mul_pd(i_adj_by_r_401, i_dz_9));
+          __m512d i_mul_adj_402 = _mm512_mul_pd(i_mul_adj_175, i_v_14);
+          __m512d i_adj_by_r_422 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_bultin_44, i_mul_adj_402), _mm512_mul_pd(i_param_40, i_param_41)), i_recip_a_84));
+          i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_7, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_422, i_dx_9)));
+          i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_7, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_422, i_dy_9)));
+          i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_7, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_422, i_dz_9)));
+          i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_7, i_fx_182, _mm512_mul_pd(i_adj_by_r_422, i_dx_9));
+          i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_7, i_fy_182, _mm512_mul_pd(i_adj_by_r_422, i_dy_9));
+          i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_7, i_fz_182, _mm512_mul_pd(i_adj_by_r_422, i_dz_9));
+          __m512d i_mul_adj_548 = _mm512_mul_pd(i_mul_adj_402, i_v_170);
+          __m512d i_fun_acc_adj_620 = _mm512_setzero_pd();
+          __mmask8 t_35 = _mm512_kand(t_7, _mm512_cmpnle_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_3[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_7, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_3[0][0], 8))));
+          __mmask8 t_36 = _mm512_kandn(t_35, t_7);
+          if (! _mm512_kortestz(t_35, t_35)) {
+            __m512d i_bultin_630 = _mm512_sqrt_pd(i_mul_val_290);
+            __m512d i_recip_633 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_bultin_630));
+            i_fun_acc_adj_620 = _mm512_mask_add_pd(i_fun_acc_adj_620, t_35, i_fun_acc_adj_620, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(0.5), i_mul_adj_548), _mm512_mul_pd(i_recip_633, i_recip_633)), _mm512_recip_pd(i_bultin_630))));
+          }
+          if(! _mm512_kortestz(t_36, t_36)) {
+            __mmask8 t_37 = _mm512_kand(t_36, _mm512_cmpnle_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_1[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_36, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_1[0][0], 8))));
+            __mmask8 t_38 = _mm512_kandn(t_37, t_36);
+            if (! _mm512_kortestz(t_37, t_37)) {
+              __m512d i_v_642 = _mm512_sub_pd(_mm512_setzero_pd(), i_param_115);
+              __m512d i_mul_val_644 = _mm512_mul_pd(_mm512_set1_pd(2), i_param_115);
+              __m512d i_bultin_648 = _mm512_sqrt_pd(i_mul_val_290);
+              i_fun_acc_adj_620 = _mm512_mask_add_pd(i_fun_acc_adj_620, t_37, i_fun_acc_adj_620, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_mul_adj_548, i_v_642), _mm512_pow_pd(i_mul_val_290, _mm512_sub_pd(i_v_642, _mm512_set1_pd(1)))), _mm512_recip_pd(_mm512_mul_pd(i_bultin_648, i_mul_val_644)))));
+              __m512d i_recip_665 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_bultin_648));
+              i_fun_acc_adj_620 = _mm512_mask_add_pd(i_fun_acc_adj_620, t_37, i_fun_acc_adj_620, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(_mm512_set1_pd(1), _mm512_mul_pd(_mm512_pow_pd(i_mul_val_290, i_v_642), _mm512_recip_pd(i_mul_val_644))), _mm512_set1_pd(0.5)), _mm512_mul_pd(i_mul_adj_548, i_recip_665)), i_recip_665), _mm512_recip_pd(i_bultin_648))));
+            }
+            if(! _mm512_kortestz(t_38, t_38)) {
+              __mmask8 t_39 = _mm512_kand(t_38, _mm512_cmplt_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_4[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_38, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_4[0][0], 8))));
+              __mmask8 t_40 = _mm512_kandn(t_39, t_38);
+              if (! _mm512_kortestz(t_39, t_39)) {
+              }
+              if(! _mm512_kortestz(t_40, t_40)) {
+                __mmask8 t_41 = _mm512_kand(t_40, _mm512_cmplt_pd_mask(i_mul_val_290, (ONETYPE ? _mm512_set1_pd(this->outlined_param_2[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_40, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_2[0][0], 8))));
+                __mmask8 t_42 = _mm512_kandn(t_41, t_40);
+                if (! _mm512_kortestz(t_41, t_41)) {
+                  i_fun_acc_adj_620 = _mm512_mask_add_pd(i_fun_acc_adj_620, t_41, i_fun_acc_adj_620, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(i_mul_adj_548, _mm512_pow_pd(i_mul_val_290, _mm512_sub_pd(i_param_115, _mm512_set1_pd(1)))), _mm512_recip_pd(_mm512_set1_pd(2)))));
+                }
+                if(! _mm512_kortestz(t_42, t_42)) {
+                  __mmask8 t_43 = _mm512_kand(t_42, _mm512_cmple_pd_mask(i_mul_val_290, i_mul_val_290));
+                  __mmask8 t_44 = _mm512_kandn(t_43, t_42);
+                  if (! _mm512_kortestz(t_43, t_43)) {
+                    i_fun_acc_adj_620 = _mm512_mask_add_pd(i_fun_acc_adj_620, t_43, i_fun_acc_adj_620, _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_115)))), i_mul_adj_548), _mm512_mul_pd(i_param_115, _mm512_pow_pd(_mm512_add_pd(_mm512_set1_pd(1), _mm512_pow_pd(i_mul_val_290, i_param_115)), (ONETYPE ? _mm512_set1_pd(this->outlined_param_5[1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_43, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))), &this->outlined_param_5[0][0], 8))))), _mm512_pow_pd(i_mul_val_290, _mm512_sub_pd(i_param_115, _mm512_set1_pd(1)))));
+                  }
+                  if(! _mm512_kortestz(t_44, t_44)) {
+                    error->one(FLERR,"else no expr");
+                  }
+                }
+              }
+            }
+          }
+          __m512d i_mul_adj_779 = _mm512_mul_pd(i_fun_acc_adj_620, i_param_46);
+          __m512i i_i_783 = _mm512_setzero_epi32();
+          __m512i t_45 = listnum_i_snlist_1047;
           for (;;) {
-            __mmask8 t_22 = _mm512_kand(t_3, _mm512_cmplt_epi32_mask(i_i_544, t_21));
-            if (_mm512_kortestz(t_22, t_22)) break;
-            __m512i i_a_545 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_22, _mm512_add_epi32(_mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_22, i_i_3, cnumneigh, 4), i_i_544), firstneigh, 4);
-            __m512d i_px_546 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_545, 3)), &x[0].x, 4);
-            __m512d i_py_546 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_545, 3)), &x[0].y, 4);
-            __m512d i_pz_546 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_545, 3)), &x[0].z, 4);
-            __m512i i_ty_546 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_22, _mm512_slli_epi32(i_a_545, 3), &x[0].w, 4);
-            __m512d i_dx_547 = _mm512_sub_pd(i_px_4, i_px_546);
-            __m512d i_dy_547 = _mm512_sub_pd(i_py_4, i_py_546);
-            __m512d i_dz_547 = _mm512_sub_pd(i_pz_4, i_pz_546);
-            __m512d i_rsq_547 = _mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_547, i_dx_547), _mm512_mul_pd(i_dy_547, i_dy_547)), _mm512_mul_pd(i_dz_547, i_dz_547));
-            __m512d i_param_548 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8);
-            __m512d i_param_549 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8);
-            __m512d i_v_550 = _mm512_add_pd(i_param_548, i_param_549);
-            __mmask8 t_23 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_547, _mm512_mul_pd(i_v_550, i_v_550)), t_22);
-            if (! _mm512_kortestz(t_23, t_23)) {
-              i_i_544 = _mm512_mask_add_epi32(i_i_544, t_23, i_i_544, _mm512_set1_epi32(1));
+            __mmask8 t_46 = _mm512_kand(t_7, _mm512_cmplt_epi32_mask(i_i_783, t_45));
+            if (_mm512_kortestz(t_46, t_46)) break;
+            __m512i i_a_784 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_46, _mm512_add_epi32(_mm512_set_epi32(15,14,13,12,11,10,9,8,7,6,5,4,3,2,1,0), _mm512_slli_epi32(i_i_783, 3)), listentry_i_snlist_1047, 4);
+            __m512d i_px_785 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_784, 3)), &x[0].x, 4);
+            __m512d i_py_785 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_784, 3)), &x[0].y, 4);
+            __m512d i_pz_785 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_slli_epi32(i_a_784, 3)), &x[0].z, 4);
+            __m512i i_ty_785 = _mm512_mask_i32gather_epi32(_mm512_undefined_epi32(), t_46, _mm512_slli_epi32(i_a_784, 3), &x[0].w, 4);
+            __m512d i_dx_786 = _mm512_sub_pd(i_px_4, i_px_785);
+            __m512d i_dy_786 = _mm512_sub_pd(i_py_4, i_py_785);
+            __m512d i_dz_786 = _mm512_sub_pd(i_pz_4, i_pz_785);
+            __m512d i_rsq_786 = _mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_786, i_dx_786), _mm512_mul_pd(i_dy_786, i_dy_786)), _mm512_mul_pd(i_dz_786, i_dz_786));
+            __m512d i_param_787 = (ONETYPE ? _mm512_set1_pd(this->param_R[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_R[0][0][0], 8));
+            __m512d i_param_788 = (ONETYPE ? _mm512_set1_pd(this->param_D[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_D[0][0][0], 8));
+            __m512d i_v_789 = _mm512_add_pd(i_param_787, i_param_788);
+            __mmask8 t_47 = _mm512_kand(_mm512_cmpnle_pd_mask(i_rsq_786, _mm512_mul_pd(i_v_789, i_v_789)), t_46);
+            if (! _mm512_kortestz(t_47, t_47)) {
+              i_i_783 = _mm512_mask_add_epi32(i_i_783, t_47, i_i_783, _mm512_set1_epi32(1));
               continue;
             }
-            __mmask8 t_24 = _mm512_kand(_mm512_cmpeq_epi32_mask(i_a_545, i_a_7), t_22);
-            if (! _mm512_kortestz(t_24, t_24)) {
-              i_i_544 = _mm512_mask_add_epi32(i_i_544, t_24, i_i_544, _mm512_set1_epi32(1));
+            __mmask8 t_48 = _mm512_kand(_mm512_cmpeq_epi32_mask(i_a_784, i_a_7), t_46);
+            if (! _mm512_kortestz(t_48, t_48)) {
+              i_i_783 = _mm512_mask_add_epi32(i_i_783, t_48, i_i_783, _mm512_set1_epi32(1));
               continue;
             }
-            __m512d i_r_551 = _mm512_sqrt_pd(i_rsq_547);
-            __m512d i_v_552;
-            __m512d i_v_555 = _mm512_sub_pd(i_param_548, i_param_549);
-            __m512d i_cos_576 = _mm512_mul_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_9, i_dx_547), _mm512_mul_pd(i_dy_9, i_dy_547)), _mm512_mul_pd(i_dz_9, i_dz_547)), _mm512_recip_pd(_mm512_mul_pd(i_r_13, i_r_551)));
-            __m512d i_param_577 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_gamma[0][0][0], 8);
-            __m512d i_param_578 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_c[0][0][0], 8);
-            __m512d i_v_579 = _mm512_mul_pd(i_param_578, i_param_578);
-            __m512d i_param_580 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_d[0][0][0], 8);
-            __m512d i_v_581 = _mm512_mul_pd(i_param_580, i_param_580);
-            __m512d i_v_589 = _mm512_sub_pd(i_cos_576, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_cos_theta_0[0][0][0], 8));
-            __m512d i_v_591 = _mm512_add_pd(i_v_581, _mm512_mul_pd(i_v_589, i_v_589));
-            __m512d i_mul_val_594 = _mm512_mul_pd(i_param_577, _mm512_sub_pd(_mm512_add_pd(_mm512_set1_pd(1), _mm512_mul_pd(i_v_579, _mm512_recip_pd(i_v_581))), _mm512_mul_pd(i_v_579, _mm512_recip_pd(i_v_591))));
-            __m512d i_param_595 = _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_22, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_546, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_lambda_3[0][0][0], 8);
-            __m512d i_v_596 = _mm512_mul_pd(_mm512_mul_pd(i_param_595, i_param_595), i_param_595);
-            __m512d i_v_599 = _mm512_sub_pd(i_r_13, i_r_551);
-            __m512d i_bultin_602 = _mm512_exp_pd(_mm512_mul_pd(i_v_596, _mm512_mul_pd(_mm512_mul_pd(i_v_599, i_v_599), i_v_599)));
-            __m512d i_fun_acc_adj_605 = _mm512_setzero_pd();
-            __mmask8 t_25 = _mm512_kand(t_22, _mm512_cmple_pd_mask(i_r_551, i_v_555));
-            __mmask8 t_26 = _mm512_kandn(t_25, t_22);
-            if (! _mm512_kortestz(t_25, t_25)) {
-              i_v_552 = _mm512_mask_blend_pd(t_25, i_v_552, _mm512_set1_pd(1));
+            __m512d i_r_790 = _mm512_sqrt_pd(i_rsq_786);
+            __m512d i_v_791;
+            __m512d i_v_794 = _mm512_sub_pd(i_param_787, i_param_788);
+            __m512d i_recip_b_819 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_r_790));
+            __m512d i_cos_819 = _mm512_mul_pd(_mm512_mul_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_dx_786, i_dx_9), _mm512_mul_pd(i_dy_786, i_dy_9)), _mm512_mul_pd(i_dz_786, i_dz_9)), i_recip_a_84), i_recip_b_819);
+            __m512d i_param_820 = (ONETYPE ? _mm512_set1_pd(this->param_gamma[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_gamma[0][0][0], 8));
+            __m512d i_param_821 = (ONETYPE ? _mm512_set1_pd(this->param_c[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_c[0][0][0], 8));
+            __m512d i_param_823 = (ONETYPE ? _mm512_set1_pd(this->param_d[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_d[0][0][0], 8));
+            __m512d i_v_833 = _mm512_sub_pd(i_cos_819, (ONETYPE ? _mm512_set1_pd(this->param_cos_theta_0[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_cos_theta_0[0][0][0], 8)));
+            __m512d i_recip_837 = _mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(_mm512_add_pd(_mm512_mul_pd(i_param_823, i_param_823), _mm512_mul_pd(i_v_833, i_v_833))));
+            __m512d i_mul_val_836 = _mm512_mul_pd(_mm512_mul_pd(i_param_821, i_param_821), i_recip_837);
+            __m512d i_mul_val_839 = _mm512_mul_pd(_mm512_sub_pd((ONETYPE ? _mm512_set1_pd(this->outlined_param_0[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->outlined_param_0[0][0][0], 8)), i_mul_val_836), i_param_820);
+            __m512d i_param_840 = (ONETYPE ? _mm512_set1_pd(this->param_lambda_3[1][1][1]) : _mm512_mask_i32gather_pd(_mm512_undefined_pd(), t_46, _mm512_castsi512_si256(_mm512_add_epi32(i_ty_785, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_8, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_add_epi32(i_ty_4, _mm512_mullo_epi32(_mm512_set1_epi32(tp1), _mm512_setzero_epi32()))))))), &this->param_lambda_3[0][0][0], 8));
+            __m512d i_v_841 = _mm512_mul_pd(_mm512_mul_pd(i_param_840, i_param_840), i_param_840);
+            __m512d i_v_844 = _mm512_sub_pd(i_r_13, i_r_790);
+            __m512d i_bultin_847 = _mm512_exp_pd(_mm512_mul_pd(_mm512_mul_pd(i_v_841, i_v_844), _mm512_mul_pd(i_v_844, i_v_844)));
+            __m512d i_fun_acc_adj_850 = _mm512_setzero_pd();
+            __mmask8 t_49 = _mm512_kand(t_46, _mm512_cmple_pd_mask(i_r_790, i_v_794));
+            __mmask8 t_50 = _mm512_kandn(t_49, t_46);
+            if (! _mm512_kortestz(t_49, t_49)) {
+              i_v_791 = _mm512_mask_blend_pd(t_49, i_v_791, _mm512_set1_pd(1));
             }
-            if(! _mm512_kortestz(t_26, t_26)) {
-              __mmask8 t_27 = _mm512_kand(t_26, _mm512_kand(_mm512_cmplt_pd_mask(i_r_551, i_v_550), _mm512_cmplt_pd_mask(i_v_555, i_r_551)));
-              __mmask8 t_28 = _mm512_kandn(t_27, t_26);
-              if (! _mm512_kortestz(t_27, t_27)) {
-                __m512d i_mul_val_566 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_551, i_param_548), _mm512_set1_pd(M_PI)), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_param_549)));
-                i_v_552 = _mm512_mask_blend_pd(t_27, i_v_552, _mm512_sub_pd(i_mul_adj_124, _mm512_mul_pd(_mm512_sin_pd(i_mul_val_566), _mm512_recip_pd(_mm512_set1_pd(2)))));
-                i_fun_acc_adj_605 = _mm512_mask_add_pd(i_fun_acc_adj_605, t_27, i_fun_acc_adj_605, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(M_PI), _mm512_cos_pd(i_mul_val_566)), _mm512_mul_pd(i_bultin_602, i_mul_adj_540)), i_mul_val_594), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(4), i_param_549)))));
+            if(! _mm512_kortestz(t_50, t_50)) {
+              __mmask8 t_51 = _mm512_kand(t_50, _mm512_kand(_mm512_cmplt_pd_mask(i_r_790, i_v_789), _mm512_cmplt_pd_mask(i_v_794, i_r_790)));
+              __mmask8 t_52 = _mm512_kandn(t_51, t_50);
+              if (! _mm512_kortestz(t_51, t_51)) {
+                __m512d i_mul_val_806 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_r_790, i_param_787), _mm512_set1_pd(M_PI)), i_mul_adj_175), _mm512_recip_pd(i_param_788));
+                i_v_791 = _mm512_mask_blend_pd(t_51, i_v_791, _mm512_sub_pd(i_mul_adj_175, _mm512_mul_pd(i_mul_adj_175, _mm512_sin_pd(i_mul_val_806))));
+                i_fun_acc_adj_850 = _mm512_mask_add_pd(i_fun_acc_adj_850, t_51, i_fun_acc_adj_850, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(M_PI), _mm512_cos_pd(i_mul_val_806)), _mm512_mul_pd(i_bultin_847, i_mul_adj_779)), i_mul_val_839), _mm512_recip_pd(_mm512_mul_pd(_mm512_set1_pd(4), i_param_788)))));
               }
-              if(! _mm512_kortestz(t_28, t_28)) {
-                __mmask8 t_29 = _mm512_kand(t_28, _mm512_cmpnlt_pd_mask(i_r_551, i_v_550));
-                __mmask8 t_30 = _mm512_kandn(t_29, t_28);
-                if (! _mm512_kortestz(t_29, t_29)) {
-                  i_v_552 = _mm512_mask_blend_pd(t_29, i_v_552, _mm512_setzero_pd());
+              if(! _mm512_kortestz(t_52, t_52)) {
+                __mmask8 t_53 = _mm512_kand(t_52, _mm512_cmpnlt_pd_mask(i_r_790, i_v_789));
+                __mmask8 t_54 = _mm512_kandn(t_53, t_52);
+                if (! _mm512_kortestz(t_53, t_53)) {
+                  i_v_791 = _mm512_mask_blend_pd(t_53, i_v_791, _mm512_setzero_pd());
                 }
-                if(! _mm512_kortestz(t_30, t_30)) {
-                  error->one(FLERR,"else no expr");
+                if(! _mm512_kortestz(t_54, t_54)) {
                   error->one(FLERR,"else no expr");
                 }
               }
             }
-            __m512d i_dx_575 = _mm512_sub_pd(i_px_8, i_px_546);
-            __m512d i_dy_575 = _mm512_sub_pd(i_py_8, i_py_546);
-            __m512d i_dz_575 = _mm512_sub_pd(i_pz_8, i_pz_546);
-            __m512d i_adj_by_r_645 = _mm512_mul_pd(i_fun_acc_adj_605, _mm512_recip_pd(i_r_551));
-            i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_22, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_645, i_dx_547)));
-            i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_22, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_645, i_dy_547)));
-            i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_22, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_645, i_dz_547)));
-            __m512d i_adj_acos_719 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_bultin_602), _mm512_mul_pd(i_mul_adj_540, i_param_577)), _mm512_mul_pd(_mm512_mul_pd(i_v_552, i_v_579), i_v_589)), _mm512_recip_pd(_mm512_mul_pd(i_v_591, i_v_591)));
-            __m512d i_adj_by_r_720 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(_mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_r_551)), _mm512_mul_pd(i_cos_576, _mm512_recip_pd(i_r_13))), i_adj_acos_719), _mm512_recip_pd(i_r_13));
-            i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_22, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_720, i_dx_9)));
-            i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_22, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_720, i_dy_9)));
-            i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_22, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_720, i_dz_9)));
-            i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_22, i_fx_131, _mm512_mul_pd(i_adj_by_r_720, i_dx_9));
-            i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_22, i_fy_131, _mm512_mul_pd(i_adj_by_r_720, i_dy_9));
-            i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_22, i_fz_131, _mm512_mul_pd(i_adj_by_r_720, i_dz_9));
-            __m512d i_adj_by_r_721 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(_mm512_mul_pd(_mm512_set1_pd(1), _mm512_recip_pd(i_r_13)), _mm512_mul_pd(i_cos_576, _mm512_recip_pd(i_r_551))), i_adj_acos_719), _mm512_recip_pd(i_r_551));
-            i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_22, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_721, i_dx_547)));
-            i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_22, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_721, i_dy_547)));
-            i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_22, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_721, i_dz_547)));
-            __m512d i_adj_by_r_722 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_acos_719, _mm512_recip_pd(_mm512_mul_pd(i_r_13, i_r_551))));
-            i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_22, i_fx_131, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_722, i_dx_575)));
-            i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_22, i_fy_131, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_722, i_dy_575)));
-            i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_22, i_fz_131, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_722, i_dz_575)));
-            __m512d i_adj_749 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_mul_adj_540, i_v_552), i_mul_val_594), i_bultin_602), i_v_596), _mm512_mul_pd(_mm512_mul_pd(i_v_599, i_v_599), _mm512_set1_pd(3)));
-            __m512d i_adj_by_r_751 = _mm512_mul_pd(i_adj_749, _mm512_recip_pd(i_r_13));
-            i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_22, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_751, i_dx_9)));
-            i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_22, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_751, i_dy_9)));
-            i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_22, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_751, i_dz_9)));
-            i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_22, i_fx_131, _mm512_mul_pd(i_adj_by_r_751, i_dx_9));
-            i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_22, i_fy_131, _mm512_mul_pd(i_adj_by_r_751, i_dy_9));
-            i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_22, i_fz_131, _mm512_mul_pd(i_adj_by_r_751, i_dz_9));
-            __m512d i_adj_by_r_753 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_749, _mm512_recip_pd(i_r_551)));
-            i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_22, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_753, i_dx_547)));
-            i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_22, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_753, i_dy_547)));
-            i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_22, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_753, i_dz_547)));
-            __m256i t_32 = _mm512_castsi512_si256(_mm512_slli_epi32(i_a_545, 3));
-            __m512d t_33 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_645, i_dx_547), _mm512_mul_pd(i_adj_by_r_721, i_dx_547)), _mm512_mul_pd(i_adj_by_r_722, i_dx_575)), _mm512_mul_pd(i_adj_by_r_753, i_dx_547));
-            __m512d t_34 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_645, i_dy_547), _mm512_mul_pd(i_adj_by_r_721, i_dy_547)), _mm512_mul_pd(i_adj_by_r_722, i_dy_575)), _mm512_mul_pd(i_adj_by_r_753, i_dy_547));
-            __m512d t_35 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_645, i_dz_547), _mm512_mul_pd(i_adj_by_r_721, i_dz_547)), _mm512_mul_pd(i_adj_by_r_722, i_dz_575)), _mm512_mul_pd(i_adj_by_r_753, i_dz_547));
-            __mmask8 t_31 = t_22;
-            while (t_31) {
-              __m512i conf0 = _mm512_maskz_conflict_epi32(t_31, _mm512_castsi256_si512(t_32));
-              __m512i conf1 = _mm512_broadcastmw_epi32(t_31);
+            __m512d i_dx_818 = _mm512_sub_pd(i_px_8, i_px_785);
+            __m512d i_dy_818 = _mm512_sub_pd(i_py_8, i_py_785);
+            __m512d i_dz_818 = _mm512_sub_pd(i_pz_8, i_pz_785);
+            __m512d i_adj_by_r_900 = _mm512_mul_pd(i_fun_acc_adj_850, i_recip_b_819);
+            i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_46, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_900, i_dx_786)));
+            i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_46, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_900, i_dy_786)));
+            i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_46, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_900, i_dz_786)));
+            __m512d i_adj_acos_978 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(2), i_bultin_847), _mm512_mul_pd(i_mul_adj_779, i_mul_val_836)), _mm512_mul_pd(_mm512_mul_pd(i_param_820, i_recip_837), _mm512_mul_pd(i_v_791, i_v_833)));
+            __m512d i_adj_by_r_979 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_recip_b_819, _mm512_mul_pd(i_cos_819, i_recip_a_84)), i_adj_acos_978), i_recip_a_84);
+            i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_46, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_979, i_dx_9)));
+            i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_46, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_979, i_dy_9)));
+            i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_46, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_979, i_dz_9)));
+            i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_46, i_fx_182, _mm512_mul_pd(i_adj_by_r_979, i_dx_9));
+            i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_46, i_fy_182, _mm512_mul_pd(i_adj_by_r_979, i_dy_9));
+            i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_46, i_fz_182, _mm512_mul_pd(i_adj_by_r_979, i_dz_9));
+            __m512d i_adj_by_r_980 = _mm512_mul_pd(_mm512_mul_pd(_mm512_sub_pd(i_recip_a_84, _mm512_mul_pd(i_cos_819, i_recip_b_819)), i_adj_acos_978), i_recip_b_819);
+            i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_46, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_980, i_dx_786)));
+            i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_46, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_980, i_dy_786)));
+            i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_46, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_980, i_dz_786)));
+            __m512d i_adj_by_r_981 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(_mm512_mul_pd(i_adj_acos_978, i_recip_a_84), i_recip_b_819));
+            i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_46, i_fx_182, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_981, i_dx_818)));
+            i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_46, i_fy_182, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_981, i_dy_818)));
+            i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_46, i_fz_182, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_981, i_dz_818)));
+            __m512d i_adj_1008 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_set1_pd(3), i_bultin_847), _mm512_mul_pd(i_mul_adj_779, i_mul_val_839)), _mm512_mul_pd(_mm512_mul_pd(i_v_791, i_v_841), _mm512_mul_pd(i_v_844, i_v_844)));
+            __m512d i_adj_by_r_1010 = _mm512_mul_pd(i_adj_1008, i_recip_a_84);
+            i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_46, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1010, i_dx_9)));
+            i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_46, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1010, i_dy_9)));
+            i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_46, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1010, i_dz_9)));
+            i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_46, i_fx_182, _mm512_mul_pd(i_adj_by_r_1010, i_dx_9));
+            i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_46, i_fy_182, _mm512_mul_pd(i_adj_by_r_1010, i_dy_9));
+            i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_46, i_fz_182, _mm512_mul_pd(i_adj_by_r_1010, i_dz_9));
+            __m512d i_adj_by_r_1012 = _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_1008, i_recip_b_819));
+            i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_46, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1012, i_dx_786)));
+            i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_46, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1012, i_dy_786)));
+            i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_46, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1012, i_dz_786)));
+            __m256i t_56 = _mm512_castsi512_si256(_mm512_slli_epi32(i_a_784, 3));
+            __m512d t_57 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_900, i_dx_786), _mm512_mul_pd(i_adj_by_r_980, i_dx_786)), _mm512_mul_pd(i_adj_by_r_981, i_dx_818)), _mm512_mul_pd(i_adj_by_r_1012, i_dx_786));
+            __m512d t_58 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_900, i_dy_786), _mm512_mul_pd(i_adj_by_r_980, i_dy_786)), _mm512_mul_pd(i_adj_by_r_981, i_dy_818)), _mm512_mul_pd(i_adj_by_r_1012, i_dy_786));
+            __m512d t_59 = _mm512_add_pd(_mm512_add_pd(_mm512_add_pd(_mm512_mul_pd(i_adj_by_r_900, i_dz_786), _mm512_mul_pd(i_adj_by_r_980, i_dz_786)), _mm512_mul_pd(i_adj_by_r_981, i_dz_818)), _mm512_mul_pd(i_adj_by_r_1012, i_dz_786));
+            __mmask8 t_55 = t_46;
+            while (t_55) {
+              __m512i conf0 = _mm512_maskz_conflict_epi32(t_55, _mm512_castsi256_si512(t_56));
+              __m512i conf1 = _mm512_broadcastmw_epi32(t_55);
               __m512i conf2  = _mm512_and_si512(conf0, conf1);
-              __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_31, conf2, conf2);
-              t_31 = t_31 & (~conf3);
-              _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_32, _mm512_add_pd(t_33, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_32, &f[0].x, 4)), 4);
-              _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_32, _mm512_add_pd(t_34, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_32, &f[0].y, 4)), 4);
-              _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_32, _mm512_add_pd(t_35, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_32, &f[0].z, 4)), 4);
+              __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_55, conf2, conf2);
+              t_55 = t_55 & (~conf3);
+              _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_56, _mm512_add_pd(t_57, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_56, &f[0].x, 4)), 4);
+              _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_56, _mm512_add_pd(t_58, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_56, &f[0].y, 4)), 4);
+              _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_56, _mm512_add_pd(t_59, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_56, &f[0].z, 4)), 4);
             }
-            i_i_544 = _mm512_add_epi32(i_i_544, _mm512_set1_epi32(1));
+            i_i_783 = _mm512_add_epi32(i_i_783, _mm512_set1_epi32(1));
           }
-          __m512d i_adj_by_r_780 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_bultin_117, i_mul_adj_290), _mm512_mul_pd(i_param_113, i_param_114)), i_v_236), _mm512_recip_pd(i_r_13));
-          i_fx_127 = _mm512_mask_add_pd(i_fx_127, t_3, i_fx_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_780, i_dx_9)));
-          i_fy_127 = _mm512_mask_add_pd(i_fy_127, t_3, i_fy_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_780, i_dy_9)));
-          i_fz_127 = _mm512_mask_add_pd(i_fz_127, t_3, i_fz_127, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_780, i_dz_9)));
-          i_fx_131 = _mm512_mask_add_pd(i_fx_131, t_3, i_fx_131, _mm512_mul_pd(i_adj_by_r_780, i_dx_9));
-          i_fy_131 = _mm512_mask_add_pd(i_fy_131, t_3, i_fy_131, _mm512_mul_pd(i_adj_by_r_780, i_dy_9));
-          i_fz_131 = _mm512_mask_add_pd(i_fz_131, t_3, i_fz_131, _mm512_mul_pd(i_adj_by_r_780, i_dz_9));
-          __m256i t_37 = _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3));
-          __m512d t_38 = i_fx_131;
-          __m512d t_39 = i_fy_131;
-          __m512d t_40 = i_fz_131;
-          __mmask8 t_36 = t_3;
-          while (t_36) {
-            __m512i conf0 = _mm512_maskz_conflict_epi32(t_36, _mm512_castsi256_si512(t_37));
-            __m512i conf1 = _mm512_broadcastmw_epi32(t_36);
+          __m512d i_adj_by_r_1039 = _mm512_mul_pd(_mm512_mul_pd(_mm512_mul_pd(i_bultin_168, i_mul_adj_402), _mm512_mul_pd(i_param_164, i_param_165)), _mm512_mul_pd(i_recip_a_84, i_v_292));
+          i_fx_178 = _mm512_mask_add_pd(i_fx_178, t_7, i_fx_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1039, i_dx_9)));
+          i_fy_178 = _mm512_mask_add_pd(i_fy_178, t_7, i_fy_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1039, i_dy_9)));
+          i_fz_178 = _mm512_mask_add_pd(i_fz_178, t_7, i_fz_178, _mm512_sub_pd(_mm512_setzero_pd(), _mm512_mul_pd(i_adj_by_r_1039, i_dz_9)));
+          i_fx_182 = _mm512_mask_add_pd(i_fx_182, t_7, i_fx_182, _mm512_mul_pd(i_adj_by_r_1039, i_dx_9));
+          i_fy_182 = _mm512_mask_add_pd(i_fy_182, t_7, i_fy_182, _mm512_mul_pd(i_adj_by_r_1039, i_dy_9));
+          i_fz_182 = _mm512_mask_add_pd(i_fz_182, t_7, i_fz_182, _mm512_mul_pd(i_adj_by_r_1039, i_dz_9));
+          __m256i t_61 = _mm512_castsi512_si256(_mm512_slli_epi32(i_a_7, 3));
+          __m512d t_62 = i_fx_182;
+          __m512d t_63 = i_fy_182;
+          __m512d t_64 = i_fz_182;
+          __mmask8 t_60 = t_7;
+          while (t_60) {
+            __m512i conf0 = _mm512_maskz_conflict_epi32(t_60, _mm512_castsi256_si512(t_61));
+            __m512i conf1 = _mm512_broadcastmw_epi32(t_60);
             __m512i conf2  = _mm512_and_si512(conf0, conf1);
-            __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_36, conf2, conf2);
-            t_36 = t_36 & (~conf3);
-            _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_37, _mm512_add_pd(t_38, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_37, &f[0].x, 4)), 4);
-            _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_37, _mm512_add_pd(t_39, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_37, &f[0].y, 4)), 4);
-            _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_37, _mm512_add_pd(t_40, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_37, &f[0].z, 4)), 4);
+            __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_60, conf2, conf2);
+            t_60 = t_60 & (~conf3);
+            _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_61, _mm512_add_pd(t_62, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_61, &f[0].x, 4)), 4);
+            _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_61, _mm512_add_pd(t_63, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_61, &f[0].y, 4)), 4);
+            _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_61, _mm512_add_pd(t_64, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_61, &f[0].z, 4)), 4);
           }
           i_i_6 = _mm512_add_epi32(i_i_6, _mm512_set1_epi32(1));
         }
-        i_a_2 = _mm512_mask_add_pd(i_a_2, t_1, i_a_2, i_a_5);
-        __m256i t_42 = _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3));
-        __m512d t_43 = i_fx_127;
-        __m512d t_44 = i_fy_127;
-        __m512d t_45 = i_fz_127;
-        __mmask8 t_41 = t_1;
-        while (t_41) {
-          __m512i conf0 = _mm512_maskz_conflict_epi32(t_41, _mm512_castsi256_si512(t_42));
-          __m512i conf1 = _mm512_broadcastmw_epi32(t_41);
+        i_a_2 = _mm512_mask_add_pd(i_a_2, t_2, i_a_2, i_a_5);
+        __m256i t_66 = _mm512_castsi512_si256(_mm512_slli_epi32(i_i_3, 3));
+        __m512d t_67 = i_fx_178;
+        __m512d t_68 = i_fy_178;
+        __m512d t_69 = i_fz_178;
+        __mmask8 t_65 = t_2;
+        while (t_65) {
+          __m512i conf0 = _mm512_maskz_conflict_epi32(t_65, _mm512_castsi256_si512(t_66));
+          __m512i conf1 = _mm512_broadcastmw_epi32(t_65);
           __m512i conf2  = _mm512_and_si512(conf0, conf1);
-          __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_41, conf2, conf2);
-          t_41 = t_41 & (~conf3);
-          _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_42, _mm512_add_pd(t_43, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_42, &f[0].x, 4)), 4);
-          _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_42, _mm512_add_pd(t_44, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_42, &f[0].y, 4)), 4);
-          _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_42, _mm512_add_pd(t_45, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_42, &f[0].z, 4)), 4);
+          __mmask8 conf3 = _mm512_mask_testn_epi32_mask(t_65, conf2, conf2);
+          t_65 = t_65 & (~conf3);
+          _mm512_mask_i32scatter_pd(&f[0].x, conf3, t_66, _mm512_add_pd(t_67, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_66, &f[0].x, 4)), 4);
+          _mm512_mask_i32scatter_pd(&f[0].y, conf3, t_66, _mm512_add_pd(t_68, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_66, &f[0].y, 4)), 4);
+          _mm512_mask_i32scatter_pd(&f[0].z, conf3, t_66, _mm512_add_pd(t_69, _mm512_mask_i32gather_pd(_mm512_undefined_pd(), conf3, t_66, &f[0].z, 4)), 4);
         }
       }
-      oevdwl += _mm512_reduce_add_pd(_mm512_mul_pd(i_a_2, _mm512_recip_pd(_mm512_set1_pd(2))));
+      oevdwl += _mm512_reduce_add_pd(_mm512_mul_pd(i_a_2, i_mul_adj_175));
 
 
       IP_PRE_fdotr_reduce_omp(1, nall, minlocal, nthreads, f_start, f_stride,
@@ -571,6 +684,8 @@ void PairPotGenIntel::eval(const int offload, const int vflag,
 void PairPotGenIntel::init_style() {
   if (force->newton_pair == 0)
     error->all(FLERR, "Pair style pot/gen/intel requires atom IDs");
+  if (atom->tag_enable == 0)
+    error->all(FLERR, "Pair style pot/gen/intel requires newton pair on");
   int irequest = neighbor->request(this, instance_me);
   neighbor->requests[irequest]->half = 0;
   neighbor->requests[irequest]->full = 1;
@@ -624,6 +739,12 @@ void PairPotGenIntel::allocate() {
   memory->create(param_c, n+1, n+1, n+1, "pair:c");
   memory->create(param_d, n+1, n+1, n+1, "pair:d");
   memory->create(param_cos_theta_0, n+1, n+1, n+1, "pair:cos_theta_0");
+  memory->create(outlined_param_0, n+1, n+1, n+1, "pair:outlined:0");
+  memory->create(outlined_param_1, n+1, n+1, "pair:outlined:1");
+  memory->create(outlined_param_2, n+1, n+1, "pair:outlined:2");
+  memory->create(outlined_param_3, n+1, n+1, "pair:outlined:3");
+  memory->create(outlined_param_4, n+1, n+1, "pair:outlined:4");
+  memory->create(outlined_param_5, n+1, n+1, "pair:outlined:5");
 }
 
 /* ---------------------------------------------------------------------- */
@@ -730,6 +851,38 @@ void PairPotGenIntel::coeff(int narg, char **arg) {
       }
 
   if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      for (int i_ty_3 = 1; i_ty_3 <= atom->ntypes; i_ty_3++) {
+        outlined_param_0[i_ty_1][i_ty_2][i_ty_3] = 1 + param_c[i_ty_1][i_ty_2][i_ty_3] * param_c[i_ty_1][i_ty_2][i_ty_3] / ((double) (param_d[i_ty_1][i_ty_2][i_ty_3] * param_d[i_ty_1][i_ty_2][i_ty_3]));
+      }
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_1[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] / ((double) 100000000), 0 - 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_2[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] / ((double) 100000000), 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_3[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] * 1 / ((double) 10000000000000), 0 - 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_4[i_ty_1][i_ty_2] = pow(2 * param_n[i_ty_1][i_ty_2] * 1 / ((double) 10000000000000), 1 / ((double) param_n[i_ty_1][i_ty_2]));
+    }
+  }
+  for (int i_ty_1 = 1; i_ty_1 <= atom->ntypes; i_ty_1++) {
+    for (int i_ty_2 = 1; i_ty_2 <= atom->ntypes; i_ty_2++) {
+      outlined_param_5[i_ty_1][i_ty_2] = 0 - 1 / ((double) (2 * param_n[i_ty_1][i_ty_2])) - 1;
+    }
+  }
 }
 
 /* ---------------------------------------------------------------------- */

@@ -51,6 +51,7 @@ class PairSwGen : public Pair {
   double ***param_lambda;
   double ***param_cos_theta0;
 
+
 };
 
 }  // namespace LAMMPS_NS

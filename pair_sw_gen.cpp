@@ -70,7 +70,6 @@ PairSwGen::~PairSwGen() {
 /* ---------------------------------------------------------------------- */
 
 void PairSwGen::compute(int eflag, int vflag) {
-  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   if (eflag || vflag) ev_setup(eflag,vflag);
   else evflag = vflag_fdotr = 0;
 
@@ -82,138 +81,177 @@ void PairSwGen::compute(int eflag, int vflag) {
   int newton_pair = force->newton_pair;
   int inum = list->inum;
   int *ilist = list->ilist;
+  tagint *tag = atom->tag;
   int *numneigh = list->numneigh;
   int **firstneigh = list->firstneigh;
   double i_a_2 = 0.0;
-  double i_mul_adj_36 = 1 / ((double) 2);
-  double i_a_124 = 0.0;
+  double i_a_98 = 0.0;
   for (int i_i_3 = 0; i_i_3 < nlocal; i_i_3++) {
     double i_px_4 = x[i_i_3][0];
     double i_py_4 = x[i_i_3][1];
     double i_pz_4 = x[i_i_3][2];
     int i_ty_4 = type[i_i_3];
+    double i_fx_4 = 0.0;
+    double i_fy_4 = 0.0;
+    double i_fz_4 = 0.0;
     double i_a_5 = 0.0;
-    double i_fx_39 = 0.0;
-    double i_fy_39 = 0.0;
-    double i_fz_39 = 0.0;
-    double i_a_127 = 0.0;
-    double i_fx_176 = 0.0;
-    double i_fy_176 = 0.0;
-    double i_fz_176 = 0.0;
-    for (int i_i_6 = 0; i_i_6 < numneigh[i_i_3]; i_i_6++) {
-      int i_a_7 = firstneigh[i_i_3][i_i_6];
-      double i_px_8 = x[i_a_7][0];
-      double i_py_8 = x[i_a_7][1];
-      double i_pz_8 = x[i_a_7][2];
+    int listnum_i_snlist_227 = 0;
+    int listentry_i_snlist_227[neighbor->oneatom];
+    for (int i_scounter_228 = 0; i_scounter_228 < numneigh[i_i_3]; i_scounter_228++) {
+      int i_satom_229 = firstneigh[i_i_3][i_scounter_228];
+      double i_dx_229 = i_px_4 - x[i_satom_229][0];
+      double i_dy_229 = i_py_4 - x[i_satom_229][1];
+      double i_dz_229 = i_pz_4 - x[i_satom_229][2];
+      if ((i_dx_229 * i_dx_229 + i_dy_229 * i_dy_229 + i_dz_229 * i_dz_229) > cutsq[i_ty_4][type[i_satom_229]]) continue;
+      listentry_i_snlist_227[listnum_i_snlist_227++] = i_satom_229;
+    }
+    for (int i_i_6 = 0; i_i_6 < listnum_i_snlist_227; i_i_6++) {
+      int i_a_7 = listentry_i_snlist_227[i_i_6];
+      int i = i_i_3;
+      int j = i_a_7;
+      tagint itag = tag[i];
+      tagint jtag = tag[j];
+      if (itag > jtag) {
+        if ((itag+jtag) % 2 == 0) continue;
+      } else if (itag < jtag) {
+        if ((itag+jtag) % 2 == 1) continue;
+      } else {
+        if (x[j][2] <  x[i][2]) continue;
+        if (x[j][2] == x[i][2] && x[j][1] <  x[i][1]) continue;
+        if (x[j][2] == x[i][2] && x[j][1] == x[i][1] && x[j][0] < x[i][0]) continue;
+      }
       int i_ty_8 = type[i_a_7];
-      double i_dx_9 = i_px_4 - i_px_8;
-      double i_dy_9 = i_py_4 - i_py_8;
-      double i_dz_9 = i_pz_4 - i_pz_8;
+      double i_dx_9 = i_px_4 - x[i_a_7][0];
+      double i_dy_9 = i_py_4 - x[i_a_7][1];
+      double i_dz_9 = i_pz_4 - x[i_a_7][2];
       double i_rsq_9 = i_dx_9 * i_dx_9 + i_dy_9 * i_dy_9 + i_dz_9 * i_dz_9;
       double i_param_11 = param_sigma[i_ty_4][i_ty_8];
       double i_mul_val_12 = param_a[i_ty_4][i_ty_8] * i_param_11;
       if (i_rsq_9 > (i_mul_val_12 * i_mul_val_12)) continue;
       double i_r_13 = sqrt(i_rsq_9);
-      double i_param_14 = param_A[i_ty_4][i_ty_8];
-      double i_param_15 = param_epsilon[i_ty_4][i_ty_8];
-      double i_param_16 = param_B[i_ty_4][i_ty_8];
-      double i_mul_val_18 = i_param_11 / ((double) i_r_13);
-      double i_param_19 = param_p[i_ty_4][i_ty_8];
-      double i_param_24 = param_q[i_ty_4][i_ty_8];
-      double i_v_26 = i_param_16 * pow(i_mul_val_18, i_param_19) - pow(i_mul_val_18, i_param_24);
-      double i_v_31 = i_r_13 - i_mul_val_12;
-      double i_bultin_33 = exp(i_param_11 / ((double) i_v_31));
-      i_a_5 += i_param_14 * i_param_15 * i_v_26 * i_bultin_33;
-      double i_mul_adj_72 = i_mul_adj_36 * i_param_14 * i_param_15 * i_bultin_33;
-      double i_adj_by_r_121 = (i_mul_adj_72 * i_param_11 * i_param_24 * pow(i_mul_val_18, (i_param_24 - 1)) / ((double) (i_r_13 * i_r_13)) - i_mul_adj_72 * i_param_11 * i_param_16 * i_param_19 * pow(i_mul_val_18, (i_param_19 - 1)) / ((double) (i_r_13 * i_r_13)) - i_bultin_33 * i_mul_adj_36 * i_param_11 * i_param_14 * i_param_15 * i_v_26 / ((double) (i_v_31 * i_v_31))) / ((double) i_r_13);
-      i_fx_39 += - i_adj_by_r_121 * i_dx_9;
-      i_fy_39 += - i_adj_by_r_121 * i_dy_9;
-      i_fz_39 += - i_adj_by_r_121 * i_dz_9;
-      f[i_a_7][0] += i_adj_by_r_121 * i_dx_9;
-      f[i_a_7][1] += i_adj_by_r_121 * i_dy_9;
-      f[i_a_7][2] += i_adj_by_r_121 * i_dz_9;
-      double i_a_135 = 0.0;
-      double i_fx_180 = 0.0;
-      double i_fy_180 = 0.0;
-      double i_fz_180 = 0.0;
-      for (int i_i_136 = 0; i_i_136 < numneigh[i_i_3]; i_i_136++) {
-        int i_a_137 = firstneigh[i_i_3][i_i_136];
-        double i_px_138 = x[i_a_137][0];
-        double i_py_138 = x[i_a_137][1];
-        double i_pz_138 = x[i_a_137][2];
-        int i_ty_138 = type[i_a_137];
-        double i_dx_139 = i_px_4 - i_px_138;
-        double i_dy_139 = i_py_4 - i_py_138;
-        double i_dz_139 = i_pz_4 - i_pz_138;
-        double i_rsq_139 = i_dx_139 * i_dx_139 + i_dy_139 * i_dy_139 + i_dz_139 * i_dz_139;
-        double i_param_141 = param_sigma[i_ty_4][i_ty_138];
-        double i_mul_val_142 = param_a[i_ty_4][i_ty_138] * i_param_141;
-        if (i_rsq_139 > (i_mul_val_142 * i_mul_val_142)) continue;
-        if (i_a_137 == i_a_7) continue;
-        double i_r_144 = sqrt(i_rsq_139);
-        double i_cos_148 = (i_dx_9 * i_dx_139 + i_dy_9 * i_dy_139 + i_dz_9 * i_dz_139) / ((double) (i_r_13 * i_r_144));
-        double i_param_149 = param_lambda[i_ty_4][i_ty_8][i_ty_138];
-        double i_v_153 = i_cos_148 - param_cos_theta0[i_ty_4][i_ty_8][i_ty_138];
-        double i_v_154 = i_v_153 * i_v_153;
-        double i_param_155 = param_gamma[i_ty_4][i_ty_8];
-        double i_bultin_162 = exp(i_param_11 * i_param_155 / ((double) i_v_31));
-        double i_param_163 = param_gamma[i_ty_4][i_ty_138];
-        double i_v_168 = i_r_144 - i_mul_val_142;
-        double i_bultin_170 = exp(i_param_141 * i_param_163 / ((double) i_v_168));
-        i_a_135 += i_param_149 * i_param_15 * i_v_154 * i_bultin_162 * i_bultin_170;
-        double i_dx_199 = i_px_8 - i_px_138;
-        double i_dy_199 = i_py_8 - i_py_138;
-        double i_dz_199 = i_pz_8 - i_pz_138;
-        double i_adj_by_r_285 = - i_bultin_162 * i_bultin_170 * i_mul_adj_36 * i_param_11 * i_param_149 * i_param_15 * i_param_155 * i_v_154 / ((double) (i_r_13 * i_v_31 * i_v_31));
-        i_fx_176 += - i_adj_by_r_285 * i_dx_9;
-        i_fy_176 += - i_adj_by_r_285 * i_dy_9;
-        i_fz_176 += - i_adj_by_r_285 * i_dz_9;
-        i_fx_180 += i_adj_by_r_285 * i_dx_9;
-        i_fy_180 += i_adj_by_r_285 * i_dy_9;
-        i_fz_180 += i_adj_by_r_285 * i_dz_9;
-        double i_adj_by_r_287 = - i_bultin_162 * i_bultin_170 * i_mul_adj_36 * i_param_141 * i_param_149 * i_param_15 * i_param_163 * i_v_154 / ((double) (i_r_144 * i_v_168 * i_v_168));
-        i_fx_176 += - i_adj_by_r_287 * i_dx_139;
-        i_fy_176 += - i_adj_by_r_287 * i_dy_139;
-        i_fz_176 += - i_adj_by_r_287 * i_dz_139;
-        double i_adj_acos_292 = 2 * i_bultin_162 * i_bultin_170 * i_mul_adj_36 * i_param_149 * i_param_15 * i_v_153;
-        double i_adj_by_r_293 = (1 / ((double) i_r_144) - i_cos_148 / ((double) i_r_13)) * i_adj_acos_292 / ((double) i_r_13);
-        i_fx_176 += - i_adj_by_r_293 * i_dx_9;
-        i_fy_176 += - i_adj_by_r_293 * i_dy_9;
-        i_fz_176 += - i_adj_by_r_293 * i_dz_9;
-        i_fx_180 += i_adj_by_r_293 * i_dx_9;
-        i_fy_180 += i_adj_by_r_293 * i_dy_9;
-        i_fz_180 += i_adj_by_r_293 * i_dz_9;
-        double i_adj_by_r_294 = (1 / ((double) i_r_13) - i_cos_148 / ((double) i_r_144)) * i_adj_acos_292 / ((double) i_r_144);
-        i_fx_176 += - i_adj_by_r_294 * i_dx_139;
-        i_fy_176 += - i_adj_by_r_294 * i_dy_139;
-        i_fz_176 += - i_adj_by_r_294 * i_dz_139;
-        double i_adj_by_r_295 = - i_adj_acos_292 / ((double) (i_r_13 * i_r_144));
-        i_fx_180 += - i_adj_by_r_295 * i_dx_199;
-        i_fy_180 += - i_adj_by_r_295 * i_dy_199;
-        i_fz_180 += - i_adj_by_r_295 * i_dz_199;
-        f[i_a_137][0] += i_adj_by_r_287 * i_dx_139 + i_adj_by_r_294 * i_dx_139 + i_adj_by_r_295 * i_dx_199;
-        f[i_a_137][1] += i_adj_by_r_287 * i_dy_139 + i_adj_by_r_294 * i_dy_139 + i_adj_by_r_295 * i_dy_199;
-        f[i_a_137][2] += i_adj_by_r_287 * i_dz_139 + i_adj_by_r_294 * i_dz_139 + i_adj_by_r_295 * i_dz_199;
-      }
-      i_a_127 += i_a_135;
-      f[i_a_7][0] += i_fx_180;
-      f[i_a_7][1] += i_fy_180;
-      f[i_a_7][2] += i_fz_180;
+      double i_param_15 = param_A[i_ty_4][i_ty_8];
+      double i_param_16 = param_epsilon[i_ty_4][i_ty_8];
+      double i_param_17 = param_B[i_ty_4][i_ty_8];
+      double i_recip_20 = 1 / ((double) i_r_13);
+      double i_mul_val_19 = i_param_11 * i_recip_20;
+      double i_param_21 = param_p[i_ty_4][i_ty_8];
+      double i_param_27 = param_q[i_ty_4][i_ty_8];
+      double i_recip_36 = 1 / ((double) (i_r_13 - i_mul_val_12));
+      double i_bultin_37 = exp(i_param_11 * i_recip_36);
+      double i_mul_adj_40 = i_bultin_37 * i_param_15 * i_param_16;
+      double i_builtin_adj_81 = (i_param_17 * pow(i_mul_val_19, i_param_21) - pow(i_mul_val_19, i_param_27)) * i_bultin_37 * i_param_15 * i_param_16;
+      double i_adj_by_r_97 = (i_mul_adj_40 * i_param_11 * i_param_27 * i_recip_20 * i_recip_20 * pow(i_mul_val_19, (i_param_27 - 1)) - i_mul_adj_40 * i_param_11 * i_param_17 * i_param_21 * i_recip_20 * i_recip_20 * pow(i_mul_val_19, (i_param_21 - 1)) - i_builtin_adj_81 * i_param_11 * i_recip_36 * i_recip_36) * i_recip_20;
+      i_fx_4 += - i_adj_by_r_97 * i_dx_9;
+      i_fy_4 += - i_adj_by_r_97 * i_dy_9;
+      i_fz_4 += - i_adj_by_r_97 * i_dz_9;
+      i_a_5 += i_builtin_adj_81;
+      f[i_a_7][0] += i_adj_by_r_97 * i_dx_9;
+      f[i_a_7][1] += i_adj_by_r_97 * i_dy_9;
+      f[i_a_7][2] += i_adj_by_r_97 * i_dz_9;
     }
     i_a_2 += i_a_5;
-    f[i_i_3][0] += i_fx_39;
-    f[i_i_3][1] += i_fy_39;
-    f[i_i_3][2] += i_fz_39;
-    i_a_124 += i_a_127;
-    f[i_i_3][0] += i_fx_176;
-    f[i_i_3][1] += i_fy_176;
-    f[i_i_3][2] += i_fz_176;
+    f[i_i_3][0] += i_fx_4;
+    f[i_i_3][1] += i_fy_4;
+    f[i_i_3][2] += i_fz_4;
+    double i_fx_100 = 0.0;
+    double i_fy_100 = 0.0;
+    double i_fz_100 = 0.0;
+    double i_a_101 = 0.0;
+    for (int i_i_102 = 0; i_i_102 < listnum_i_snlist_227; i_i_102++) {
+      int i_a_103 = listentry_i_snlist_227[i_i_102];
+      double i_px_104 = x[i_a_103][0];
+      double i_py_104 = x[i_a_103][1];
+      double i_pz_104 = x[i_a_103][2];
+      int i_ty_104 = type[i_a_103];
+      double i_dx_105 = i_px_4 - i_px_104;
+      double i_dy_105 = i_py_4 - i_py_104;
+      double i_dz_105 = i_pz_4 - i_pz_104;
+      double i_rsq_105 = i_dx_105 * i_dx_105 + i_dy_105 * i_dy_105 + i_dz_105 * i_dz_105;
+      double i_param_107 = param_sigma[i_ty_4][i_ty_104];
+      double i_mul_val_108 = param_a[i_ty_4][i_ty_104] * i_param_107;
+      if (i_rsq_105 > (i_mul_val_108 * i_mul_val_108)) continue;
+      double i_fx_104 = 0.0;
+      double i_fy_104 = 0.0;
+      double i_fz_104 = 0.0;
+      double i_a_109 = 0.0;
+      double i_r_117 = sqrt(i_rsq_105);
+      double i_recip_a_124 = 1 / ((double) i_r_117);
+      double i_param_127 = param_epsilon[i_ty_4][i_ty_104];
+      double i_param_132 = param_gamma[i_ty_4][i_ty_104];
+      double i_recip_139 = 1 / ((double) (i_r_117 - i_mul_val_108));
+      double i_bultin_140 = exp(i_param_107 * i_param_132 * i_recip_139);
+      for (int i_i_110 = 1 + i_i_102; i_i_110 < listnum_i_snlist_227; i_i_110++) {
+        int i_a_111 = listentry_i_snlist_227[i_i_110];
+        double i_px_112 = x[i_a_111][0];
+        double i_py_112 = x[i_a_111][1];
+        double i_pz_112 = x[i_a_111][2];
+        int i_ty_112 = type[i_a_111];
+        double i_dx_113 = i_px_4 - i_px_112;
+        double i_dy_113 = i_py_4 - i_py_112;
+        double i_dz_113 = i_pz_4 - i_pz_112;
+        double i_rsq_113 = i_dx_113 * i_dx_113 + i_dy_113 * i_dy_113 + i_dz_113 * i_dz_113;
+        double i_param_115 = param_sigma[i_ty_4][i_ty_112];
+        double i_mul_val_116 = param_a[i_ty_4][i_ty_112] * i_param_115;
+        if (i_rsq_113 > (i_mul_val_116 * i_mul_val_116)) continue;
+        double i_r_119 = sqrt(i_rsq_113);
+        double i_dx_123 = i_px_104 - i_px_112;
+        double i_dy_123 = i_py_104 - i_py_112;
+        double i_dz_123 = i_pz_104 - i_pz_112;
+        double i_recip_b_124 = 1 / ((double) i_r_119);
+        double i_cos_124 = (i_dx_105 * i_dx_113 + i_dy_105 * i_dy_113 + i_dz_105 * i_dz_113) * i_recip_a_124 * i_recip_b_124;
+        double i_param_126 = param_lambda[i_ty_4][i_ty_104][i_ty_112];
+        double i_v_130 = i_cos_124 - param_cos_theta0[i_ty_4][i_ty_104][i_ty_112];
+        double i_v_131 = i_v_130 * i_v_130;
+        double i_param_141 = param_gamma[i_ty_4][i_ty_112];
+        double i_recip_148 = 1 / ((double) (i_r_119 - i_mul_val_116));
+        double i_bultin_149 = exp(i_param_115 * i_param_141 * i_recip_148);
+        double i_builtin_adj_198 = i_bultin_140 * i_bultin_149 * i_param_126 * i_param_127 * i_v_131;
+        double i_adj_by_r_216 = - i_bultin_140 * i_bultin_149 * i_param_107 * i_param_126 * i_param_127 * i_param_132 * i_recip_139 * i_recip_139 * i_recip_a_124 * i_v_131;
+        i_fx_100 += - i_adj_by_r_216 * i_dx_105;
+        i_fy_100 += - i_adj_by_r_216 * i_dy_105;
+        i_fz_100 += - i_adj_by_r_216 * i_dz_105;
+        i_fx_104 += i_adj_by_r_216 * i_dx_105;
+        i_fy_104 += i_adj_by_r_216 * i_dy_105;
+        i_fz_104 += i_adj_by_r_216 * i_dz_105;
+        double i_adj_by_r_218 = - i_builtin_adj_198 * i_param_115 * i_param_141 * i_recip_148 * i_recip_148 * i_recip_b_124;
+        i_fx_100 += - i_adj_by_r_218 * i_dx_113;
+        i_fy_100 += - i_adj_by_r_218 * i_dy_113;
+        i_fz_100 += - i_adj_by_r_218 * i_dz_113;
+        double i_adj_acos_223 = 2 * i_bultin_140 * i_bultin_149 * i_param_126 * i_param_127 * i_v_130;
+        double i_adj_by_r_224 = (i_recip_b_124 - i_cos_124 * i_recip_a_124) * i_adj_acos_223 * i_recip_a_124;
+        i_fx_100 += - i_adj_by_r_224 * i_dx_105;
+        i_fy_100 += - i_adj_by_r_224 * i_dy_105;
+        i_fz_100 += - i_adj_by_r_224 * i_dz_105;
+        i_fx_104 += i_adj_by_r_224 * i_dx_105;
+        i_fy_104 += i_adj_by_r_224 * i_dy_105;
+        i_fz_104 += i_adj_by_r_224 * i_dz_105;
+        double i_adj_by_r_225 = (i_recip_a_124 - i_cos_124 * i_recip_b_124) * i_adj_acos_223 * i_recip_b_124;
+        i_fx_100 += - i_adj_by_r_225 * i_dx_113;
+        i_fy_100 += - i_adj_by_r_225 * i_dy_113;
+        i_fz_100 += - i_adj_by_r_225 * i_dz_113;
+        double i_adj_by_r_226 = - i_adj_acos_223 * i_recip_a_124 * i_recip_b_124;
+        i_fx_104 += - i_adj_by_r_226 * i_dx_123;
+        i_fy_104 += - i_adj_by_r_226 * i_dy_123;
+        i_fz_104 += - i_adj_by_r_226 * i_dz_123;
+        i_a_109 += i_builtin_adj_198;
+        f[i_a_111][0] += i_adj_by_r_218 * i_dx_113 + i_adj_by_r_225 * i_dx_113 + i_adj_by_r_226 * i_dx_123;
+        f[i_a_111][1] += i_adj_by_r_218 * i_dy_113 + i_adj_by_r_225 * i_dy_113 + i_adj_by_r_226 * i_dy_123;
+        f[i_a_111][2] += i_adj_by_r_218 * i_dz_113 + i_adj_by_r_225 * i_dz_113 + i_adj_by_r_226 * i_dz_123;
+      }
+      i_a_101 += i_a_109;
+      f[i_a_103][0] += i_fx_104;
+      f[i_a_103][1] += i_fy_104;
+      f[i_a_103][2] += i_fz_104;
+    }
+    i_a_98 += i_a_101;
+    f[i_i_3][0] += i_fx_100;
+    f[i_i_3][1] += i_fy_100;
+    f[i_i_3][2] += i_fz_100;
   }
-  eng_vdwl += i_a_2 / ((double) 2);
-  eng_vdwl += i_a_124 / ((double) 2);
+  eng_vdwl += i_a_2;
+  eng_vdwl += i_a_98;
 
   if (vflag_fdotr) virial_fdotr_compute();
-  fesetenv(FE_DFL_ENV);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -221,6 +259,8 @@ void PairSwGen::compute(int eflag, int vflag) {
 void PairSwGen::init_style() {
   if (force->newton_pair == 0)
     error->all(FLERR, "Pair style sw/gen requires atom IDs");
+  if (atom->tag_enable == 0)
+    error->all(FLERR, "Pair style sw/gen requires newton pair on");
   int irequest = neighbor->request(this, instance_me);
   neighbor->requests[irequest]->half = 0;
   neighbor->requests[irequest]->full = 1;

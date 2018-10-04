@@ -1,0 +1,38 @@
+mh464322@linuxihdc162:~/potc[507]$ for i in sw.in sw.in.ref tersoff.in tersoff.in.ref; do echo $i; ./potc/lammps-16Mar18/src/lmp_intel_serial -in $i -pk intel 0 mode double -sf intel | grep '100\|Loop'; ./potc/lammps-16Mar18/src/lmp_intel_serial -in $i | grep '100\|Loop'; done
+sw.in
+  max neighbors/atom: 2000, page size: 100000
+       0         1000    -138771.2            0      -134635    6866.6499
+     100    508.80533   -136736.12            0    -134631.6    6361.7858
+Loop time of 9.32009 on 1 procs for 100 steps with 32000 atoms
+  max neighbors/atom: 2000, page size: 100000
+       0         1000    -138771.2            0      -134635    6866.6499
+     100    508.80533   -136736.12            0    -134631.6    6361.7858
+Loop time of 18.8814 on 1 procs for 100 steps with 32000 atoms
+sw.in.ref
+  max neighbors/atom: 2000, page size: 100000
+       0         1000    -138771.2            0      -134635    6866.6486
+     100    508.80533   -136736.12            0    -134631.6    6361.7856
+Loop time of 3.12495 on 1 procs for 100 steps with 32000 atoms
+  max neighbors/atom: 2000, page size: 100000
+       0         1000    -138771.2            0      -134635    6866.6499
+     100    508.80533   -136736.12            0    -134631.6    6361.7858
+Loop time of 20.9476 on 1 procs for 100 steps with 32000 atoms
+tersoff.in
+  max neighbors/atom: 2000, page size: 100000
+       0         1000   -148173.19            0   -144036.99    7019.4434
+     100    429.24901    -145810.1            0   -144034.64   -14610.887
+Loop time of 5.47974 on 1 procs for 100 steps with 32000 atoms
+  max neighbors/atom: 2000, page size: 100000
+       0         1000   -148173.19            0   -144036.99    7019.4434
+     100    429.24901    -145810.1            0   -144034.64   -14610.887
+Loop time of 24.8147 on 1 procs for 100 steps with 32000 atoms
+tersoff.in.ref
+  max neighbors/atom: 2000, page size: 100000
+       0         1000   -148173.19            0   -144036.99    7019.4434
+     100    429.24901    -145810.1            0   -144034.64   -14610.887
+Loop time of 9.4997 on 1 procs for 100 steps with 32000 atoms
+  max neighbors/atom: 2000, page size: 100000
+       0         1000   -148173.19            0   -144036.99    7019.4434
+     100    429.24901    -145810.1            0   -144034.64   -14610.887
+Loop time of 30.241 on 1 procs for 100 steps with 32000 atoms
+

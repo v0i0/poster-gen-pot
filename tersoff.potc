@@ -27,16 +27,16 @@ function zeta(i : atom; j : atom) = sum(k : neighbors(i, R(i, j, k) + D(i, j, k)
 
 function tersqrt(val : distance; n : distance) = (1 + val^n) ^ (-1 / (2 * n));
 
-#function c1(n : distance) = (2*n/10000000000000)^(-1/n);
-#function c2(n : distance) = (2*n/100000000)^(-1/n);
-#function c3(n : distance) = (2*n/100000000)^(1/n);
-#function c4(n : distance) = (2*n/10000000000000)^(1/n);
-#function tersqrt(val : distance; n : distance) = piecewise(
-#  val > c1(n): 1/sqrt(val);
-#  val > c2(n): (1 - val^(-n) / (2*n)) / sqrt(val);
-#  val < c4(n): 1;
-#  val < c3(n): 1 - val^n / (2*n);
-#  val <= val: (1 + val^n)^(-1/(2*n)));
+function c1(n : distance) = (2*n/10000000000000)^(-1/n);
+function c2(n : distance) = (2*n/100000000)^(-1/n);
+function c3(n : distance) = (2*n/100000000)^(1/n);
+function c4(n : distance) = (2*n/10000000000000)^(1/n);
+function tersqrt(val : distance; n : distance) = piecewise(
+  val > c1(n): 1/sqrt(val);
+  val > c2(n): (1 - val^(-n) / (2*n)) / sqrt(val);
+  val < c4(n): 1;
+  val < c3(n): 1 - val^n / (2*n);
+  val <= val: (1 + val^n)^(-1/(2*n)));
   
 
 #function b(i : atom; j : atom) = implicit(i : i; j : j) (1 + beta ^ n * zeta(i, j) ^ n) ^ (-1 / (2 * n));
